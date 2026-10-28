@@ -62,7 +62,7 @@ Para pasar un mazo a Moxfield: crea un mazo nuevo (formato Commander), pulsa **I
 | Vista | Para qué |
 |---|---|
 | **Lista** | Grupos en columnas, con el coste de maná de cada carta. Al pasar el ratón, la imagen aparece a la izquierda. |
-| **Cuadrícula** | Las imágenes de las cartas, una por una, separadas por grupos. |
+| **Cuadrícula** | Las imágenes de las cartas, una por una, separadas por grupos. Junto a **Ocultar verificadas** hay un deslizador para cambiar el tamaño de las cartas (se recuerda para la próxima vez). |
 | **Tabla** | Edición rápida: cantidades, edición, foil, precio y eliminar. Indica si una carta también está en otros mazos. |
 
 En Lista y Cuadrícula se puede **agrupar** por Tipo, Coste, Color o sin grupos, y **ordenar** por Nombre, Coste o Precio. Los grupos se pliegan con ▾.

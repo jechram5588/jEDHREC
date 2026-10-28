@@ -207,6 +207,9 @@ img.pip.sym { width: 19px; height: 19px; }
 #hideOkBtn { display: inline-flex; align-items: center; gap: 6px; }
 #hideOkBtn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); font-weight: 700; }
 #hideOkBtn .num { color: var(--muted); font-weight: 400; }
+.sizer { text-transform: none; letter-spacing: 0; }
+.sizer .ic { width: 15px; height: 15px; }
+.sizer input[type="range"] { flex: 0 1 120px; width: 120px; padding: 0; border: 0; background: transparent; accent-color: var(--accent); }
 .verifybtn.on { background: var(--ok); border-color: var(--ok); color: var(--panel); font-weight: 700; }
 tr.is-ok .linkbtn { color: var(--ok); }
 .row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 22px; gap: 8px; align-items: center; padding: 5px 4px;
@@ -221,7 +224,7 @@ tr.is-ok .linkbtn { color: var(--ok); }
   font-family: var(--f-mono); color: var(--m-ink); background: var(--mC); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); line-height: 1; }
 .ms.W { background: var(--mW); } .ms.U { background: var(--mU); } .ms.B { background: var(--mB); } .ms.R { background: var(--mR); } .ms.G { background: var(--mG); }
 
-.ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cw, 150px)), 1fr)); gap: 12px; }
 .gsec { display: grid; gap: 10px; margin-bottom: 8px; }
 .gcard { position: relative; border: 0; padding: 0; background: transparent; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
 .gcard:hover .art { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3); }
@@ -315,7 +318,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 @media (max-width: 760px) {
   .deckmenu { max-width: none; flex: 1 1 auto; }
   .deckname { font-size: 1.45rem; }
-  .ggrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+  .ggrid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cw, 150px) * 0.73)), 1fr)); gap: 8px; }
   .cardmodal { grid-template-columns: minmax(0, 1fr); }
   .cardmodal .art { max-width: 240px; margin: 0 auto; }
 }
@@ -740,10 +743,11 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
           ${seg("sort", "Ordenar", [["n", "Nombre", "az"], ["cmc", "Coste", "bolt"], ["p", "Precio", "dollar"]])}` : ""}
           <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button>
+          ${ui.view === "grid" ? `<label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="cardSize" type="range" min="90" max="300" step="10" value="${ui.cardW || 150}" aria-label="Tamaño de las cartas"></label>` : ""}
           <input id="deckFilter" type="search" placeholder="Filtrar por nombre, tipo o edición…" value="${esc(d.localFilter || "")}" aria-label="Filtrar cartas del mazo">
         </div>
       </section>
-      <div class="board${showPreview ? "" : " nopreview"}">
+      <div class="board${showPreview ? "" : " nopreview"}" style="--cw:${ui.cardW || 150}px">
         ${showPreview ? `<aside class="preview" id="preview">${previewHtml(d)}</aside>` : ""}
         <div>${body}</div>
       </div>`;
@@ -1296,6 +1300,8 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   app.addEventListener("input", (e) => {
     const t = e.target;
     if (t.id === "q") { ui.filter = t.value; render(); }
+    // Resize in place instead of re-rendering, so dragging stays smooth.
+    if (t.id === "cardSize") { ui.cardW = +t.value; document.querySelector(".board").style.setProperty("--cw", ui.cardW + "px"); const { filter, ...keep } = ui; lsSet(UI_KEY, keep); }
     if (t.id === "deckFilter") {
       const d = deckOf(ui.deck); d.localFilter = t.value;
       const pos = t.selectionStart; render();
