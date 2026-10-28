@@ -1,0 +1,1390 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<title>Jedhrec</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style id="css">
+/* Layout: barra superior + mazos a la izquierda + vista previa fija de la carta + grupos por tipo en columnas (lista) o cuadrícula de imágenes */
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --ink: #1b2430; --muted: #5d6b7c; --line: #d5dce4; --hover: #e6edf3;
+  --accent: #1f6f8b; --accent-ink: #ffffff; --accent-soft: #dcecf2;
+  --foil: #a8741a; --foil-soft: #f6ead2; --danger: #b3261e; --danger-soft: #f8dedc; --ok: #2e7d4f;
+  --mW: #f6f1d0; --mU: #b3d4ea; --mB: #b9b0ab; --mR: #ec9f82; --mG: #9fc79a; --mC: #d3cdcb; --m-ink: #1b1b1b;
+  --f-display: "Alegreya SC", Georgia, serif;
+  --f-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171d; --panel: #1a2129; --ink: #e3e9ef; --muted: #93a1b1; --line: #2c3743; --hover: #222b35;
+  --accent: #5fb3d0; --accent-ink: #0b1a21; --accent-soft: #1d3542;
+  --foil: #e0b45e; --foil-soft: #3a2f1a; --danger: #f08a80; --danger-soft: #3d1f1d; --ok: #74c69a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12171d; --panel: #1a2129; --ink: #e3e9ef; --muted: #93a1b1; --line: #2c3743; --hover: #222b35;
+  --accent: #5fb3d0; --accent-ink: #0b1a21; --accent-soft: #1d3542;
+  --foil: #e0b45e; --foil-soft: #3a2f1a; --danger: #f08a80; --danger-soft: #3d1f1d; --ok: #74c69a; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 0.86em; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin: 0; white-space: nowrap; }
+.brand button { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
+.brand button:hover { color: var(--accent); }
+.homehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
+.homehead h2 { margin: 0; font-family: var(--f-display); font-size: 1.6rem; }
+.homehead .hsort { margin-left: auto; align-self: center; }
+.homehead .dd .menu { left: auto; right: 0; min-width: 220px; }
+.decks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 12px; }
+.dcard { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; align-items: start; text-align: left; font: inherit; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+.dcard:hover { border-color: var(--accent); }
+.dcard .thumbs { display: grid; gap: 4px; }
+.dcard .thumbs .art { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
+.dcard .info { display: grid; gap: 3px; min-width: 0; }
+.dcard h3 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; line-height: 1.15; }
+.dcard .cmdr { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dcard .cmdr small { color: var(--muted); font-size: 0.85rem; }
+.dcard .curve { margin-top: 2px; }
+.dcard .bars { height: 88px; gap: 4px; }
+.dcard .bar { width: 24px; }
+.search { flex: 1 1 220px; min-width: 0; }
+.search input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 6px 12px; border-radius: 6px; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.btn.danger { color: var(--danger); }
+.btn.danger.solid { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.status { font-size: 0.85rem; color: var(--muted); }
+.status.dirty { color: var(--foil); font-weight: 700; }
+
+.layout { padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.decknav { flex-basis: 100%; display: flex; align-items: center; gap: 8px 16px; min-width: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+.deckmenu { position: relative; flex: 0 1 auto; min-width: 0; max-width: 280px; }
+.mtot { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 10px; }
+.dmbtn { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; border: 1px solid var(--line); background: var(--bg);
+  border-radius: 6px; padding: 5px 12px; }
+.dmbtn:hover, .dmbtn[aria-expanded="true"] { border-color: var(--accent); }
+.dmbtn .lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.dmbtn b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dmbtn .caret { color: var(--muted); font-size: 0.8rem; }
+.mega { position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; width: min(940px, calc(100vw - 32px)); max-height: 75vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+  padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 28px; }
+.mega h3 { font-family: var(--f-display); font-size: 1.1rem; margin: 0 0 6px; }
+.mcol { display: grid; gap: 2px; align-content: start; }
+.mitem { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; padding: 5px 6px; border-radius: 6px; text-align: left; }
+.mitem:hover { background: var(--hover); }
+.mitem.on { background: var(--accent-soft); }
+.mitem.on b { color: var(--accent); }
+.mitem span { display: grid; min-width: 0; line-height: 1.25; }
+.mitem b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mitem small { color: var(--muted); font-size: 0.76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mega .empty { grid-column: 1 / -1; padding: 8px; }
+.pips { display: inline-flex; gap: 2px; flex: none; }
+.pip { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-family: var(--f-mono); font-size: 10px; font-weight: 700;
+  color: var(--m-ink); background: var(--mC); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+img.sym { background: none; box-shadow: none; border-radius: 0; display: inline-block; vertical-align: middle; }
+img.ms.sym { width: 17px; height: 17px; }
+img.pip.sym { width: 19px; height: 19px; }
+.pip.W { background: var(--mW); } .pip.U { background: var(--mU); } .pip.B { background: var(--mB); } .pip.R { background: var(--mR); } .pip.G { background: var(--mG); }
+.totals { flex: none; font-size: 0.8rem; color: var(--muted); display: flex; gap: 14px; }
+.totals div { display: flex; gap: 5px; }
+
+.view { min-width: 0; display: grid; gap: 14px; }
+.deckhead { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; }
+.titlerow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.deckname { font-family: var(--f-display); font-size: 1.8rem; font-weight: 700; margin: 0; text-wrap: balance; }
+.cmdr { color: var(--muted); }
+.cmdr b { color: var(--ink); font-weight: 500; }
+.headgrid { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: end; justify-content: space-between; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.stat { display: grid; }
+.stat small, .curve small { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stat strong { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+.curve { display: grid; gap: 4px; }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 88px; }
+.bar { width: 22px; display: grid; justify-items: center; align-content: end; gap: 2px; height: 100%; }
+.bar i { display: block; width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar em { font-style: normal; font-size: 0.75rem; color: var(--muted); font-family: var(--f-mono); }
+.bar b { font-size: 0.75rem; font-family: var(--f-mono); font-weight: 400; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.pill.ok { background: var(--accent-soft); color: var(--ok); }
+.pill.warn { background: var(--danger-soft); color: var(--danger); }
+.deckhead.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 10px 14px; }
+.cmdthumbs { display: flex; gap: 4px; flex: none; }
+.cmdthumb { width: 84px; border: 0; padding: 0; background: transparent; border-radius: 4px; display: block; }
+.cmdthumb .art { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
+.cmdthumb.none { aspect-ratio: 488 / 680; display: grid; place-items: center; border: 1px dashed var(--line); color: var(--muted); font-size: 1.4rem; }
+.dh-main { flex: 1 1 260px; min-width: 0; display: grid; gap: 2px; }
+.compact .titlerow { gap: 4px 10px; align-items: center; }
+.compact .deckname { font-size: 1.45rem; line-height: 1.15; }
+.compact .cmdr { font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statline { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.85rem; color: var(--muted); }
+.statline b { color: var(--ink); font-weight: 600; }
+.compact .bars { height: 88px; gap: 4px; }
+.compact .bar { width: 24px; }
+.dh-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.statline.types { margin-top: 2px; }
+.more { position: relative; }
+.more summary { list-style: none; padding: 6px 12px; font-weight: 700; line-height: 1.2; }
+.more summary::-webkit-details-marker { display: none; }
+.more .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 6; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); display: grid; min-width: 170px; padding: 4px; }
+.more .menu button { border: 0; background: transparent; text-align: left; padding: 7px 10px; border-radius: 5px; }
+.more .menu button:hover { background: var(--hover); }
+.more .menu button.danger { color: var(--danger); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.deckhead .toolbar { flex: 1 1 100%; gap: 8px 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.deckhead .toolbar #deckFilter { flex: 0 1 300px; margin-left: auto; }
+.toolbar input { flex: 1 1 160px; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 5px 11px; font-size: 0.9rem; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+.ic.chev { width: 14px; height: 14px; color: var(--muted); }
+.ibtn { display: inline-grid; place-items: center; padding-left: 9px; padding-right: 9px; }
+.ibtn .ic { width: 18px; height: 18px; }
+.ibtn:hover { background: var(--accent); color: var(--accent-ink); }
+.ibtn.add { border-color: var(--accent); color: var(--accent); }
+.ibtn.add:hover { color: var(--accent-ink); }
+.ibtn.danger { border-color: var(--danger); }
+.ibtn.danger:hover { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+#themeBtn { display: inline-grid; place-items: center; padding-left: 9px; padding-right: 9px; }
+#themeBtn .ic { width: 18px; height: 18px; }
+.dd summary { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.dd summary > .ic:first-child { color: var(--accent); }
+.dd .menu button { display: flex; align-items: center; gap: 8px; }
+.dd .ddk { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.dd .menu { left: 0; right: auto; min-width: 150px; }
+.dd .menu button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.addform { display: grid; grid-template-columns: 90px minmax(0, 1fr) 110px; gap: 12px; }
+.addform label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); }
+.addform input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 0; width: 100%; color: var(--ink); font-size: 0.95rem; }
+.addform .f-n { grid-column: 2 / 4; }
+.addform .f-e { grid-column: 1 / 3; }
+.addform .f-f { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.95rem; grid-column: 1 / 4; }
+.addform .f-f input { width: auto; }
+.addform .row2 { grid-column: 1 / 4; }
+
+.board { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; align-items: start; }
+.board.nopreview { grid-template-columns: minmax(0, 1fr); }
+.preview { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h, 120px) + 12px); display: grid; gap: 8px; }
+.preview .art { width: 100%; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+.preview .pname { font-weight: 700; }
+.preview .pmeta { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+
+.art { display: block; width: 100%; max-width: 100%; aspect-ratio: 488 / 680; border-radius: 4.6% / 3.4%; background-color: var(--line);
+  background-repeat: no-repeat; object-fit: cover; overflow: hidden; }
+.art.ph { display: grid; align-content: center; justify-items: center; gap: 6px; padding: 10%; text-align: center; color: var(--muted);
+  background: linear-gradient(160deg, var(--panel), var(--hover)); border: 1px solid var(--line); font-size: 0.85rem; }
+.art.ph b { color: var(--ink); font-size: 0.95rem; }
+
+.groups { columns: 300px; column-gap: 28px; }
+.group { break-inside: avoid; margin-bottom: 18px; display: block; }
+.ghead { display: flex; align-items: baseline; gap: 6px; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  padding: 4px 2px 6px; text-align: left; font-weight: 700; font-size: 1rem; }
+.ghead .num { color: var(--muted); font-weight: 400; }
+.ghead .caret { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
+.ghead .gval { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
+.okbtn { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+  color: var(--muted); cursor: pointer; opacity: 0.55; }
+.okbtn .ic { width: 13px; height: 13px; stroke-width: 3; }
+.okbtn:hover { opacity: 1; border-color: var(--ok); color: var(--ok); }
+.okbtn.on { opacity: 1; background: var(--ok); border-color: var(--ok); color: var(--panel); }
+.gcard .okbtn { position: absolute; top: -7px; right: -7px; z-index: 3; width: 28px; height: 28px; opacity: 0.85; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.gcard .okbtn .ic { width: 15px; height: 15px; }
+#hideOkBtn { display: inline-flex; align-items: center; gap: 6px; }
+#hideOkBtn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); font-weight: 700; }
+#hideOkBtn .num { color: var(--muted); font-weight: 400; }
+.verifybtn.on { background: var(--ok); border-color: var(--ok); color: var(--panel); font-weight: 700; }
+tr.is-ok .linkbtn { color: var(--ok); }
+.row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 22px; gap: 8px; align-items: center; padding: 5px 4px;
+  border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 4px; }
+.row:hover, .row.sel { background: var(--hover); }
+.row .q { color: var(--muted); text-align: right; }
+.row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .foilmark { color: var(--foil); font-size: 0.75rem; font-weight: 700; margin-left: 4px; }
+
+.cost { display: inline-flex; gap: 2px; align-items: center; flex-wrap: nowrap; }
+.ms { width: 17px; height: 17px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10.5px; font-weight: 700;
+  font-family: var(--f-mono); color: var(--m-ink); background: var(--mC); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); line-height: 1; }
+.ms.W { background: var(--mW); } .ms.U { background: var(--mU); } .ms.B { background: var(--mB); } .ms.R { background: var(--mR); } .ms.G { background: var(--mG); }
+
+.ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.gsec { display: grid; gap: 10px; margin-bottom: 8px; }
+.gcard { position: relative; border: 0; padding: 0; background: transparent; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
+.gcard:hover .art { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3); }
+.gcard .art { transition: transform .15s, box-shadow .15s; }
+.flip { position: relative; display: block; perspective: 1400px; }
+.flip .faces { display: grid; transform-style: preserve-3d; transition: transform .5s; }
+.flip .faces > .art { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip .faces > .art.back, .gcard:hover .flip .faces > .art.back { transform: rotateY(180deg); }
+.flip.flipped .faces { transform: rotateY(180deg); }
+.flipbtn { position: absolute; right: 7%; top: 41%; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(15, 20, 25, 0.72); color: #fff; border: 1px solid rgba(255, 255, 255, 0.5); cursor: pointer; }
+.flipbtn:hover { background: rgba(15, 20, 25, 0.9); }
+.flipbtn .ic { width: 18px; height: 18px; }
+.badge { position: absolute; top: 8%; left: 6%; background: var(--ink); color: var(--panel); border-radius: 999px; padding: 0 8px; font-size: 0.8rem; font-weight: 700; font-family: var(--f-mono); }
+.badge.foil { left: auto; right: 6%; background: var(--foil); color: var(--panel); font-family: var(--f-body); }
+.gcard .cap { font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.gcard .cap { min-width: 0; }
+.gcard .cap span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gcard .cap span:last-child { flex: none; }
+
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700;
+  padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap; user-select: none; }
+th.sort { cursor: pointer; }
+th.sort:hover { color: var(--ink); }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tr.is-cmdr td { background: var(--accent-soft); }
+td.r, th.r { text-align: right; }
+td.type { color: var(--muted); font-size: 0.85rem; }
+.qty { display: inline-flex; align-items: center; gap: 2px; }
+.qty button { width: 26px; height: 26px; border: 1px solid var(--line); background: var(--bg); border-radius: 4px; line-height: 1; padding: 0; }
+.qty span { min-width: 26px; text-align: center; }
+.linkbtn { border: 0; background: transparent; padding: 0; text-align: left; font-weight: 500; }
+.linkbtn:hover { color: var(--accent); text-decoration: underline; }
+.tag { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; white-space: nowrap; }
+.tag.c { color: var(--accent); border-color: var(--accent); }
+.edit { border: 1px solid transparent; background: transparent; border-radius: 4px; padding: 3px 5px; width: 100%; min-width: 0; }
+.edit:hover, .edit:focus { border-color: var(--line); background: var(--bg); }
+.edit.price { width: 80px; text-align: right; font-family: var(--f-mono); font-size: 0.86em; }
+.foilbtn { border: 1px solid var(--line); background: transparent; border-radius: 999px; font-size: 0.75rem; padding: 1px 9px; color: var(--muted); }
+.foilbtn.on { background: var(--foil-soft); color: var(--foil); border-color: var(--foil); font-weight: 700; }
+.x { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; }
+.x:hover { color: var(--danger); background: var(--danger-soft); }
+.empty { padding: 24px; text-align: center; color: var(--muted); }
+
+.results { display: grid; gap: 10px; }
+.result { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
+.result h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.drop { border: 2px dashed var(--accent); background: var(--accent-soft); color: var(--accent); position: fixed; inset: 12px; z-index: 30;
+  border-radius: 12px; display: grid; place-items: center; font-family: var(--f-display); font-size: 1.6rem; pointer-events: none; }
+.modal-bg { position: fixed; inset: 0; z-index: 40; background: rgba(10, 15, 20, 0.55); display: grid; place-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; }
+.modal { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; width: min(560px, 100%); display: grid; gap: 12px; max-height: 92vh; overflow: auto; }
+.modal.wide { width: min(720px, 100%); }
+.modal h3 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; }
+.modal p { margin: 0; }
+.modal textarea { width: 100%; min-height: 220px; font-family: var(--f-mono); font-size: 0.8rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; color: var(--ink); }
+.modal input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.modal .row2 { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.cardmodal { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 18px; }
+.cardmodal .fields { display: grid; gap: 10px; align-content: start; }
+.cardmodal .tl { color: var(--muted); font-size: 0.9rem; }
+.cardmodal .f { display: grid; gap: 3px; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.cardmodal .f input { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--ink); }
+.cardmodal .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cardmodal a { color: var(--accent); }
+.imgmodal { display: grid; gap: 14px; }
+.imgmodal h4 { margin: 0 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.imgmodal section { display: grid; gap: 6px; }
+.imgmodal a { color: var(--accent); }
+.imgmodal .allrow { display: flex; gap: 6px; align-items: center; }
+.prints { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; max-height: 46vh; overflow-y: auto; padding: 2px; }
+.pbtn { border: 2px solid transparent; background: transparent; padding: 2px; border-radius: 8px; display: grid; gap: 3px; text-align: left; font-size: 0.75rem; color: var(--muted); min-width: 0; }
+.pbtn:hover { border-color: var(--accent); }
+.pbtn.on { border-color: var(--foil); }
+.pbtn b { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pastezone { border: 2px dashed var(--line); border-radius: 8px; padding: 16px; text-align: center; color: var(--muted); }
+.pastezone:focus, .pastezone.over { border-color: var(--accent); color: var(--accent); outline: none; }
+.pastezone button { border: 0; background: transparent; color: var(--accent); text-decoration: underline; padding: 0; }
+.cardside { display: grid; gap: 8px; align-content: start; }
+.toast { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--panel); padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; max-width: calc(100% - 32px); }
+
+@media (max-width: 1150px) { .board { grid-template-columns: minmax(0, 1fr); } .preview { display: none; } }
+@media (max-width: 760px) {
+  .deckmenu { max-width: none; flex: 1 1 auto; }
+  .deckname { font-size: 1.45rem; }
+  .ggrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+  .cardmodal { grid-template-columns: minmax(0, 1fr); }
+  .cardmodal .art { max-width: 240px; margin: 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .gcard .art, .flip .faces { transition: none; } .gcard:hover .art { transform: none; } }
+@media (prefers-reduced-motion: no-preference) { .deckbtn, .btn, .chip { transition: border-color .15s, background .15s; } }
+</style>
+<div id="app">
+  <header class="top">
+    <h1 class="brand"><button type="button" id="homeBtn" title="Ver todos los mazos">Jedhrec</button></h1>
+    <div class="deckmenu" id="decklist"></div>
+    <div class="search"><input id="q" type="search" placeholder="Buscar una carta en todos los mazos…" aria-label="Buscar carta en todos los mazos"></div>
+    <div class="actions">
+      <input id="file" type="file" accept=".csv,.tsv,.txt,.json" multiple hidden>
+      <button class="btn" id="importBtn" type="button">Importar CSV</button>
+      <button class="btn" id="newBtn" type="button">Nuevo mazo</button>
+      <button class="btn" id="backupBtn" type="button" title="Guardar o recuperar todos tus mazos en un archivo">Respaldo</button>
+      <button class="btn" id="themeBtn" type="button" title="Cambiar entre tema claro y oscuro" aria-label="Cambiar entre tema claro y oscuro"></button>
+      <span class="status" id="status"></span>
+      <button class="btn primary" id="saveBtn" type="button" hidden>Guardar</button>
+    </div>
+  </header>
+  <div class="layout">
+    <main class="view" id="view"><div class="deckhead empty">Cargando mazos…</div></main>
+  </div>
+  <div id="overlay"></div>
+</div>
+<script type="application/json" id="deck-data">{"savedAt":"2026-10-27T12:00:00Z","decks":[],"meta":{}}</script>
+<script type="application/json" id="mana-syms">{"{X}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48cGF0aCBkPSdNMTAwIDQ5Ljk5OGMwIDI3LjYxNS0yMi4zODMgNTAuMDAyLTUwIDUwLjAwMi0yNy42MTMgMC01MC0yMi4zODctNTAtNTAuMDAyIDAtMjcuNjEzIDIyLjM4Ny00OS45OTggNTAtNDkuOTk4IDI3LjYxNyAwIDUwIDIyLjM4NSA1MCA0OS45OTh6JyBpZD0nU2hhcGUnIGZpbGw9JyNDQUM1QzAnLz48cGF0aCBkPSdNNTYuNjQxIDgwdi0zLjI5N2M0LjcwMy0uNTIxIDcuMDU5LTEuODg3IDcuMDU5LTQuMDgyIDAtMS41ODItLjYyOS0zLjE2NC0xLjg4My00Ljc0NmwtMTMuMDA4LTE2LjAxLTEwLjI3MyAxMi4xMTFjLTIuNTcgMi45NzMtMy44NjMgNS40MzItMy44NjMgNy4zNTQgMCAyLjk3NiAyLjM1NCA0Ljc3MSA3LjA3IDUuMzg3djMuMjgzaC0yNS4wNTF2LTMuMjg3YzMuMTcyLS42MDkgNS44NjctMS43NTIgOC4xMDItMy40MTYgMS41MzktMS4yMjMgMy42MzctMy4zNzEgNi4yODUtNi40MzhsMTUuNDQ5LTE3LjkxNS0xNy44NjctMjEuNjZjLTIuMzE1LTIuNzk3LTQuMTIxLTQuNjMzLTUuNDAxLTUuNTEtMS43MjQtMS4yMjUtNC4xMjEtMi4wMTItNy4yMDMtMi4zNjF2LTMuNDEzaDI5LjUzOXYzLjI4NWMtNC40NTMuODc3LTYuNjc2IDIuMjM0LTYuNjc2IDQuMDc0IDAgMS4yMy41OTQgMi41ODYgMS43OTMgNC4wNzJsMTEuODE2IDE0LjMyMiA5LjUwOC0xMS42OTFjMS43MTEtMi4xMDQgMi41Ny0zLjk0MSAyLjU3LTUuNTIgMC0yLjYyOS0yLjEwNS00LjM0LTYuMzAxLTUuMTI5di0zLjQxM2gyMy41MTJ2My4yOTFjLTIuMDU1LjQzOS0zLjQ3My44MzQtNC4yMyAxLjE4OC0yLjU3IDEuMjI5LTYuNDk2IDQuODY5LTExLjc5NyAxMC45Mi0uODUyLjk2OS00LjQ1MyA1LjM5My0xMC43ODkgMTMuMjg1bDE4Ljk3NyAyMy4zNjNjNC4xMTMgNS4wNzggOC4zMDUgNy45NzEgMTIuNTg2IDguNjY2djMuMjg3aC0yOS45MjR6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{0}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48Y2lyY2xlIGZpbGw9JyNDQUM1QzAnIGN4PSc1MCcgY3k9JzUwJyByPSc1MCcvPjxwYXRoIGQ9J00yMyA1Mi40MjhjMC05Ljc4NyAyLjA2MS0xOC44MTMgNi4xOTEtMjcuMDcyIDUuMTE3LTEwLjIzNiAxMi4xMjMtMTUuMzU1IDIxLjAxMi0xNS4zNTUgOC43OTcgMCAxNS42NjYgNC4zNTkgMjAuNjA1IDEzLjA2NCA0LjEyNyA3LjE4NiA2LjE5MSAxNS41MzcgNi4xOTEgMjUuMDUxIDAgOS44ODEtMi4wNjQgMTguODE0LTYuMTkxIDI2LjgwMy01LjAzMSAxMC4wNTgtMTIuMDM1IDE1LjA4MS0yMS4wMTEgMTUuMDgxLTguNTMxIDAtMTUuMzA1LTQuMzA3LTIwLjMzNi0xMi45MjYtNC4zMDgtNy4zNjEtNi40NjEtMTUuNTc2LTYuNDYxLTI0LjY0NnptMTEuMzA5LTQuNDQ0YzAgMTIuOTI2IDEuOTMgMjIuOTg0IDUuNzk1IDMwLjE2OCAyLjY5MSA1LjAyNSA2LjE0NiA3LjU0MSAxMC4zNjcgNy41NDEgMTAuMTQ2IDAgMTUuMjIxLTEwLjUwNiAxNS4yMjEtMzEuNTE4IDAtOS4yNDQtLjgwOS0xNy4wNTktMi40MjItMjMuNDM0LTIuNzg1LTEwLjUwNC03LjQ5OC0xNS43Ni0xNC4xNDUtMTUuNzYtOS44NzkgMC0xNC44MTYgMTAuMTUtMTQuODE2IDMwLjQ0M3YyLjU2eicgZmlsbD0nIzBEMEYwRicvPjwvZz48L3N2Zz4K","{1}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTU1LjY4NSAxMS4wMDF2NjQuMTA4YzAgNy42NzEgMy4yMjYgMTEuNTA0IDkuNjg3IDExLjUwNGgxLjY4NHY0LjM4OGgtMzQuMTExdi00LjM4OGgyLjE0MWM2LjI0NyAwIDkuMzY5LTMuODMzIDkuMzY5LTExLjUwNHYtNDIuMDU0YzAtNy43NTgtMi42OTctMTEuNjQzLTguMDgxLTExLjY0M2gtMy40Mjl2LTQuMjQ3aDEuMjM3YzYuNjYgMCAxMi42OTEtMi4wNTcgMTguMDgtNi4xNjVsMy40MjMuMDAxeicgZmlsbD0nIzBEMEYwRicvPjwvZz48L3N2Zz4K","{2}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgZmlsbD0iI0NBQzVDMCIgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIi8+PHBhdGggZD0ibTc4LjQ0MiA2OS4xMDUtNS42ODEgMTkuODk4SDI1LjU1NXYtNC4yNTRjMi4yOTMtMi42NTIgNy4zMTgtOC4wMDEgMTUuMDc2LTE2LjA1M2EzMzEuMjYxIDMzMS4yNjEgMCAwIDAgMTMuODgyLTE1LjM3MWMyLjI5MS0yLjY1MSA0LjA1Ny00Ljk0MiA1LjI4Ny02Ljg2MiAyLjczMy00LjExNCA0LjEtOC4zMiA0LjEtMTIuNjI0IDAtNC4yMDQtMS4yNTQtNy45MTItMy43NjYtMTEuMTEyLTIuNTEyLTMuMjA0LTUuNzUyLTQuODA4LTkuNzIyLTQuODA4LTguNTQ4IDAtMTUuMjQ2IDUuOTk4LTIwLjA5NCAxNy45OGwtNC4yMzUtMS42NDdjNS43My0xNi44MjkgMTQuNzYzLTI1LjI0OSAyNy4xMDYtMjUuMjQ5IDYuMDgzIDAgMTEuMjYxIDIuMTQ5IDE1LjUzNiA2LjQ0OCA0LjI3OCA0LjMgNi40MTQgOS42MDQgNi40MTQgMTUuOTIgMCA4LjA1Mi00LjQ0OSAxNS45MTgtMTMuMzUzIDIzLjYwMWwtOS4yNTQgNy45NTZjLTUuOTA4IDUuMTI3LTEwLjgwNCA5LjkyOS0xNC42NzYgMTQuNDEyLS4yNy4yNzMtLjc5Ni45MTYtMS41ODcgMS45MjFoMjQuNTljMy43OSAwIDYuNjU2LS43NzYgOC41OTQtMi4zMzUgMS42NzItMS4zNzIgMy4zMDktMy45OCA0Ljg5NS03LjgyMWg0LjA5NFoiIGZpbGw9IiMwRDBGMEYiLz48L2c+PC9zdmc+Cg==","{3}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM5LjU2MSA1My41NjJsLTIuMDE4LTMuNzcxIDEuMzM3LS44MDdjNS4xNzQtMy4xNDUgOS45MDMtNi4zMyAxNC4xODktOS41NjMgNC4yODQtMy4yMzIgNi40MjctNi45MTUgNi40MjctMTEuMDQ4IDAtMi43NzgtMS4wMjktNS4xMTItMy4wODUtNi45OTgtMi4wNjEtMS44OTItNC40NzItMi44MzQtNy4yNDQtMi44MzQtNi40MzkgMC0xMy4yMzQgNC4wMDEtMjAuMzkyIDExLjk5MWwtMy4zNTQtMi41NTljNy40NTMtMTEuMzE2IDE2LjU2Ni0xNi45NzQgMjcuMzQxLTE2Ljk3NCA0Ljc1NyAwIDguNzk1IDEuMTY4IDEyLjEyMiAzLjUwMyAzLjc3MSAyLjYwNyA1LjY1NSA2LjE1MyA1LjY1NSAxMC42NDIgMCAzLjIyOS0xLjM0OSA2LjM3NC00LjAzOSA5LjQyNi0xLjUyOCAxLjc5OC00LjIyNiA0LjEzMi04LjA4MyA3LjAwNGwtMS42MTYgMS4yMTNjLjcxOC0uMDg5IDEuNTcyLS4xMzQgMi41Ni0uMTM0IDQuOTM3IDAgOC45OTggMS44ODcgMTIuMTg4IDUuNjU3IDMuMTg4IDMuNzcxIDQuNzgzIDguMTcgNC43ODMgMTMuMTk2IDAgOC41MzItMy41OTUgMTUuNjY3LTEwLjc3NCAyMS40MTYtNi42NDcgNS4zODctMTQuMzI1IDguMDc3LTIzLjAzMiA4LjA3Ny03Ljk5MSAwLTE0LjI3Ni0xLjc0OC0xOC44NTgtNS4yNDlsMi40MjktMy4zNzFjNS4zODcgMi42MDggMTAuMjc5IDMuOTA3IDE0LjY4MSAzLjkwNyA2LjM3MyAwIDEyLjA1MS0yLjEwOSAxNy4wMzItNi4zMyA0Ljk4OC00LjIyIDcuNDc1LTkuNDY5IDcuNDc1LTE1Ljc1NSAwLTQuMTMyLTEuMjU1LTcuNjU1LTMuNzctMTAuNTc2LTIuNTE2LTIuOTE1LTUuNzkzLTQuMzc0LTkuODMyLTQuMzc0LTMuNjg0LjAwMi03LjcyMyAxLjQzNy0xMi4xMjIgNC4zMTF6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{4}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTY0LjI3IDY4LjM1OXY2LjcyM2MwIDcuNjg0IDIuNjk1IDExLjUyNSA4LjA5NCAxMS41MjVoMi4zM3Y0LjM5NGgtMzIuNjU4di00LjM5NGgyLjYwN2M1LjMwMyAwIDcuOTYxLTMuNzk4IDcuOTYxLTExLjM5MnYtNi44NTZoLTMyLjc5NXYtNi44NjFsMzQuNTc4LTUwLjQ5N2g5Ljg4M3Y1MS41OTJoLjgyYzMuMzgzIDAgNS44NTItMi42MDggNy40MDgtNy44MTZoNC4xMTVsLTEuOTIgMTMuNTgzLTEwLjQyMy0uMDAxem0tMTEuNjY2LTUuNzY2di00MS40NThsLTI3Ljg5MyA0MS40NThoMjcuODkzeicgZmlsbD0nIzBEMEYwRicvPjwvZz48L3N2Zz4K","{5}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM0Ljk1NyAxMi4zNTJoMjguOTQxYzMuNzU0IDAgNS45ODgtLjQ1IDYuNzAzLTEuMzUyaDQuMTU2bC0yLjQyMiAxMC45MjVoLTM1LjMxNGwtMy40MDggMTUuNzg5YzUuMTI3LTIuMDcgOS42NjgtMy4xMDQgMTMuNjI1LTMuMTA0IDcuNzI5IDAgMTQuMjUgMi41ODcgMTkuNTU5IDcuNzU4IDUuMzA1IDUuMTcxIDcuOTYxIDExLjYyMiA3Ljk2MSAxOS4zNTcgMCA4Ljk5Ni0zLjQ2NSAxNi4yMzctMTAuMzk0IDIxLjcyMi02LjM4NSA1LjAzOS0xNC4xNjIgNy41NTMtMjMuMzM4IDcuNTUzLTUuMzk1IDAtMTAuNjYtLjgwOC0xNS43ODUtMi40MjZsMS42MTctNC4wNDZjNC4zMiAxLjE2OSA4LjE0MSAxLjc1MSAxMS40NjkgMS43NTEgNi42NTQgMCAxMi40NzctMi4xOCAxNy40NzMtNi41NDQgNC45OS00LjM1OCA3LjQ4OC05LjgyNiA3LjQ4OC0xNi4zOTIgMC01LjY2NS0xLjg0NC0xMC4zMi01LjUzMy0xMy45NTktMy42ODktMy42NDYtOC4zNjUtNS40NjgtMTQuMDMzLTUuNDY4LTUuMjEzIDAtMTAuMDcgMS44LTE0LjU2OCA1LjM5NmwtMi43MDEtLjUzOCA4LjUwNC0zNi40MjJ6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{6}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM2LjU4IDQ1LjY3NWM1LjkzNC01LjU3NyAxMS45MS04LjM2NCAxNy45MzktOC4zNjQgNi41NjQgMCAxMS44MjggMi42MDYgMTUuNzg3IDcuODIxIDMuNjgyIDQuNzcgNS41MjkgMTAuNTIxIDUuNTI5IDE3LjI3IDAgNy4zNzYtMi4xNTggMTMuODQ5LTYuNDc1IDE5LjQyNS00Ljc2OCA2LjExNC0xMC43MDMgOS4xNzQtMTcuODA3IDkuMTc0LTguNTQ3IDAtMTUuMzgxLTMuNjktMjAuNTA0LTExLjA2My00LjU5LTYuNDc3LTYuODgzLTE0LjE2Ny02Ljg4My0yMy4wNzEgMC05LjQ0IDIuNjA3LTE4LjE0MSA3LjgyNC0yNi4xMDEgNS4yMTMtNy45NTggMTIuMTg0LTEzLjYwMiAyMC45MDYtMTYuOTI4IDQuOTQ3LTEuODg4IDEwLjE2OC0yLjgzOSAxNS42NS0yLjgzOXY0LjE4NGMtMTEuNjkxLjYzMS0yMC40MTQgNS4zMDgtMjYuMTc0IDE0LjAzMS0yLjk1OCA0LjUwMS00Ljg5NSA5Ljk4My01Ljc5MiAxNi40NjF6bS0uODEyIDguMDkyYy0uMDg2IDEuNjE4LS4xMzMgMy4yMzgtLjEzMyA0Ljg1NyAwIDYuMjAzIDEuMDc4IDExLjk2IDMuMjM2IDE3LjI2OSAyLjc4NSA2LjkyMiA2Ljg4MyAxMC4zODUgMTIuMjc5IDEwLjM4NSA0LjY3NCAwIDguMTgtMi4zODEgMTAuNTItNy4xNTEgMS43OTctMy42ODQgMi42OTctOC4xMzUgMi42OTctMTMuMzU1IDAtNS41NzEtLjg1Ny0xMC4zNDItMi41NjMtMTQuMjk5LTIuMzQtNS4zOTYtNS45MzYtOC4wOTItMTAuNzkzLTguMDkyLTUuOTMzLS4wMDEtMTEuMDE3IDMuNDY0LTE1LjI0MyAxMC4zODZ6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{7}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTUzLjQ5NCA5MWgtMTEuNjQzdi0xLjIzOGMwLTcuMzk2IDIuMzI4LTE2LjY1OSA2Ljk4LTI3LjgwOCA3LjAzNS0xNi43OTkgMTMuNTItMjkuNjczIDE5LjQ1My0zOC42MjRsLjgyMi0xLjIzMmgtMjcuMjU2Yy0zLjkzIDAtNi45Mi44MTktOC45NzUgMi40NjMtMi4wNTkgMS42NDUtMy41ODIgNC4zODctNC41ODYgOC4yMjJoLTQuNTJsNC45MjYtMjEuNzgyaDIuODgxYzEuNzM0LjkxNCA0Ljc0MiAxLjM3MSA5LjA0MSAxLjM3MWgzNS42MDl2Ni4xNjVjLTEuMjc1IDEuODI5LTIuOTE4IDQuNzUtNC45MjYgOC43NjgtMy44MzggNy40ODUtNy4zNTIgMTYuMjA4LTEwLjU1MyAyNi4xNjMtNC43NDMgMTQuNzAyLTcuMTYzIDI3LjIwOS03LjI1MyAzNy41MzJ6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{8}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTQwLjk2NSA1MC40NjNsLTEuNzQ2LTEuMjExYy01LjExOS0zLjUwMi04LjQ5Mi02LjMzLTEwLjEwNy04LjQ4OS0yLjA2Ni0yLjY5MS0zLjA5Ni01LjgzLTMuMDk2LTkuNDI2IDAtNi4xMDUgMi41NTctMTEuMDg3IDcuNjc4LTE0Ljk0OSA0Ljc1OC0zLjU5IDEwLjI4MS01LjM4OCAxNi41NjgtNS4zODggNS45MjIgMCAxMS4xOCAxLjU3MyAxNS43NTYgNC43MTMgNS4yMDMgMy41MDMgNy44MTMgOC4xMjcgNy44MTMgMTMuODc2IDAgNy4wMDQtNC44OTggMTIuNjYtMTQuNjgyIDE2Ljk2NyAxMS4xMzEgNS4zODggMTYuNjk5IDEyLjg4NCAxNi42OTkgMjIuNDkyIDAgNi45MTQtMi42NDYgMTIuMzg5LTcuOTQ5IDE2LjQzNC00Ljc1MyAzLjY4Mi0xMC43MjkgNS41MTgtMTcuOTA5IDUuNTE4LTYuNzM0IDAtMTIuNTI1LTEuNzAzLTE3LjM3Ny01LjExOS01LjU2OC0zLjg1Ni04LjM0OC04Ljk3Ni04LjM0OC0xNS4zNDkgMC02LjM3MyAyLjk2My0xMS42MyA4Ljg4OS0xNS43NjEgMS42MTYtMS4wNzQgNC4yMjMtMi41MSA3LjgxMS00LjMwOHptNC41NzIgMS45MTJjLTguMDggMy42NzctMTIuMTExIDkuNDY2LTEyLjExMSAxNy4zNjEgMCA1LjExMyAxLjYzNSA5LjIxOCA0LjkxNiAxMi4zMTQgMy4yNzcgMy4wOTcgNy40NzUgNC42NDMgMTIuNTk0IDQuNjQzIDQuNTc0IDAgOC40NjEtMS4yMzIgMTEuNjQ2LTMuNjk1IDMuMTg2LTIuNDY0IDQuNzgxLTUuODkxIDQuNzgxLTEwLjI4IDAtNi42MjYtNC4zNjctMTIuMDAxLTEzLjA5OC0xNi4xMjJsLTguNzI4LTQuMjIxem05LjAzMS03Ljk3M2M3LjA4OC0zLjE0MSAxMC42NDEtNy44NTQgMTAuNjQxLTE0LjEzOSAwLTQuMzEzLTEuNTA2LTcuNzY2LTQuNTEtMTAuMzc1LTMuMDEyLTIuNjAzLTYuNzE1LTMuOTA2LTExLjExMy0zLjkwNi0zLjY4NCAwLTYuODY5Ljk5MS05LjU2MyAyLjk2NC0yLjk2NSAyLjE1NC00LjQ0MyA1LjAzLTQuNDQzIDguNjIgMCA0LjQgMi4wNjMgNy45NDggNi4xOTUgMTAuNjQzLjgwNS41MzcgNC4zOTYgMi4yODYgMTAuNzc1IDUuMjVsMi4wMTguOTQzeicgZmlsbD0nIzBEMEYwRicvPjwvZz48L3N2Zz4K","{9}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTYzLjQwMiA1Ni41MjRjLTUuOTIyIDUuNTY3LTExLjg5OCA4LjM1My0xNy45MSA4LjM1My02LjU1NSAwLTExLjgwOS0yLjYwNC0xNS43NTgtNy44MTQtMy42ODQtNC43NTgtNS41MjMtMTAuNTA3LTUuNTIzLTE3LjI0MSAwLTcuMjcyIDIuMTUyLTEzLjc3NyA2LjQ2MS0xOS41MjYgNC42NzItNi4xOTkgMTAuNTU1LTkuMjk2IDE3LjY0OC05LjI5NiA4LjYyMiAwIDE1LjQ4OSAzLjcyOCAyMC42MDUgMTEuMTgxIDQuNTgyIDYuNTU0IDYuODY3IDE0LjMxOSA2Ljg2NyAyMy4zMDIgMCAxMi43NDYtNC4yMjQgMjMuNDk4LTEyLjY1NSAzMi4yNTctOC40NDEgOC43NTItMTguOTkzIDEzLjE3NC0zMS42NTMgMTMuMjYxdi00LjE3NWMzLjg1OS0uMTc2IDYuOTUzLS42MjYgOS4yOTctMS4zNDQgMTIuOTIyLTMuOTUxIDIwLjQ2OS0xMy42MDEgMjIuNjIxLTI4Ljk1OHptLjgxMy04LjA4MmMuMDg2LTEuNzA2LjEyOS0zLjMyMi4xMjktNC44NDYgMC02LjI4NS0xLjA3NC0xMi4wMzQtMy4yMy0xNy4yNC0yLjg3NS02LjkxNi03LTEwLjM3NC0xMi4zODYtMTAuMzc0LTQuNjc2IDAtOC4xMjUgMi4zODUtMTAuMzc1IDcuMTQxLTEuNzk3IDMuNjgzLTIuNjkxIDguMTI2LTIuNjkxIDEzLjMzNCAwIDUuNTY2Ljg1MiAxMC4zMjQgMi41NTkgMTQuMjc1IDIuMzMyIDUuMzg3IDUuOTI2IDguMDgzIDEwLjc3NyA4LjA4MyA1LjkyIDAgMTAuOTktMy40NTggMTUuMjE3LTEwLjM3M3onIGZpbGw9JyMwRDBGMEYnLz48L2c+PC9zdmc+Cg==","{10}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM1LjMwNiAxOS42MzN2NTAuNDM5YzAgNS45OTggMi41NjcgOC45OTggNy42OTMgOC45OThoMS4zMDV2My40MmgtMjYuODY2di0zLjQyaDEuNzI3YzQuOTMxIDAgNy40LTMgNy40LTguOTk4di0zMy4wOGMwLTYuMDgtMi4xNTUtOS4xMjMtNi40NjctOS4xMjNoLTIuNjZ2LTMuNDI0aDEuMDE2YzUuMjM4IDAgOS45NjktMS42MDQgMTQuMTkxLTQuODEzbDIuNjYxLjAwMXptOS43NiAzMy4zMjhjMC03Ljg1NyAxLjY0Ni0xNS4wODIgNC45NC0yMS42NjggNC4xNDItOC4xOTMgOS44MDUtMTIuMjkzIDE2Ljk4Mi0xMi4yOTMgNi45MzEgMCAxMi40MjIgMy41MDggMTYuNDc2IDEwLjUxNiAzLjI5NiA1Ljc0OCA0Ljk0NSAxMi4zODEgNC45NDUgMTkuODk4IDAgNy44NTktMS42NDggMTUuMDM5LTQuOTQ1IDIxLjU0NS00LjE0MSA4LjAyOS05Ljc1NyAxMi4wNDEtMTYuODUzIDEyLjA0MS02Ljg0MiAwLTEyLjI5My0zLjQ2NS0xNi4zNTItMTAuMzk1LTMuNDY0LTUuODI4LTUuMTkzLTEyLjM3Ni01LjE5My0xOS42NDR6bTkuMTIyLTMuNjc2YzAgNi42OC43MTggMTIuNjc2IDIuMTU2IDE3Ljk5NiAyLjE5NyA4LjE5NSA1Ljc4NSAxMi4yOTUgMTAuNzcxIDEyLjI5NSA4LjExMSAwIDEyLjE2NS04LjQ0NyAxMi4xNjUtMjUuMzQ2IDAtMjAuODY5LTQuMzk0LTMxLjMwMS0xMy4xODItMzEuMzAxLTcuOTQxIDAtMTEuOTEyIDguMTA1LTExLjkxMiAyNC4zMjhsLjAwMiAyLjAyOHonIGZpbGw9JyMwRDBGMEYnLz48L2c+PC9zdmc+Cg==","{11}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM5LjgzMSAxOS4zMnY1MC44NGMwIDYuMDQ5IDIuNTE2IDkuMDcgNy41MzYgOS4wN2gxLjI3OXYzLjQ0OWgtMjcuMDgxdi0zLjQ0OWgxLjc4OGM1LjEwOSAwIDcuNjY3LTMuMDIxIDcuNjY3LTkuMDd2LTMzLjM0YzAtNi4xMzMtMi4xNzMtOS4xOTUtNi41MTgtOS4xOTVoLTIuNjgzdi0zLjQ0OWgxLjAyNGM1LjI4IDAgMTAuMDQ3LTEuNjE3IDE0LjMwNC00Ljg1NWwyLjY4NC0uMDAxem0zMi40NDkgMHY1MC44NGMwIDYuMDQ5IDIuNTExIDkuMDcgNy41MzcgOS4wN2gxLjI3OHYzLjQ0OWgtMjcuMDg2di0zLjQ0OWgxLjc4OGM1LjExNSAwIDcuNjY3LTMuMDIxIDcuNjY3LTkuMDd2LTMzLjM0YzAtNi4xMzMtMi4xNzMtOS4xOTUtNi41MTMtOS4xOTVoLTIuNjgydi0zLjQ0OWgxLjAxOWM1LjI4IDAgMTAuMDQ3LTEuNjE3IDE0LjMxLTQuODU1bDIuNjgyLS4wMDF6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{12}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM1LjYzIDIwLjIxNXY0OS4xOGMwIDUuODc1IDIuNDI4IDguODE2IDcuMjc3IDguODE2aDEuMjc4djMuNDQ1aC0yNi4xODV2LTMuNDQ1aDEuNTMzYzQuOTM4IDAgNy40MDYtMi45NDEgNy40MDYtOC44MTZ2LTMyLjMyYzAtNS45NTUtMi4wNDMtOC45MzktNi4xMjgtOC45MzloLTIuNjgydi0zLjMyMmgxLjAxOWM1LjEwOSAwIDkuNzA5LTEuNTMxIDEzLjc5NS00LjU5OGwyLjY4Ny0uMDAxem01MC45NjUgNDYuMzY3bC00LjQ3MSAxNS4yMDNoLTM3LjQyOXYtMy4zMmMxLjc5My0yLjA0MyA1Ljc0OS02LjEzMyAxMS44ODItMTIuMjY2IDMuNjU5LTMuNjYgNy4zMjQtNy41NzggMTAuOTg4LTExLjc0OCAxLjc4OC0yLjA0OSAzLjE5MS0zLjc0OCA0LjIxNS01LjExNSAyLjEyNi0zLjIzMiAzLjE5MS02LjQ2NSAzLjE5MS05LjcwMyAwLTMuMjM4LS45ODEtNi4wOTItMi45MzgtOC41NjEtMS45NTktMi40NzEtNC41NTktMy43MDUtNy43OTEtMy43MDUtNi43MzEgMC0xMi4wMTIgNC41OTgtMTUuODQzIDEzLjc5OWwtMy4zMjEtMS4yNzljNC42MDEtMTIuNzc1IDExLjc1Mi0xOS4xNjQgMjEuNDYxLTE5LjE2NCA0Ljc2NyAwIDguODU3IDEuNjIxIDEyLjI2MiA0Ljg1NSAzLjQwNCAzLjIzOCA1LjEwOSA3LjI4MSA1LjEwOSAxMi4xMzcgMCA2LjIxNS0zLjUzNCAxMi4yNjItMTAuNTk4IDE4LjE0MWwtNy4yODIgNS44NzNjLTQuNjg4IDMuOTItOC41NjEgNy42MjUtMTEuNjI4IDExLjExMS0uMjU0LjI2Mi0uNjgxLjcyOS0xLjI3MyAxLjQxaDE5LjU0NGMyLjk3OSAwIDUuMTkyLS41NTcgNi42NDMtMS42NjQgMS40NDUtMS4xMDIgMi43NjYtMy4xMDcgMy45NTYtNi4wMDRoMy4zMjN6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{13}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM3Ljk2NyAyMC43ODl2NDguNTQzYzAgNS43MDcgMi40MjggOC41NTUgNy4yODIgOC41NTVoMS4xNDl2My4zMjJoLTI1LjgwMnYtMy4zMjJoMS42NjNjNC45MzggMCA3LjQwNi0yLjg0OCA3LjQwNi04LjU1NXYtMzEuODExYzAtNS44NzMtMi4wODktOC44MTQtNi4yNTgtOC44MTRoLTIuNTU4di0zLjMxNmgxLjAyNGM1LjAyMSAwIDkuNTM4LTEuNTM1IDEzLjU0LTQuNjAyaDIuNTU0em0yMS43MTcgMzIuMTkxbC0xLjUzMy0yLjgxMyAxLjE1My0uNjQxYzMuODMxLTIuMzc5IDcuMzg3LTQuNzg1IDEwLjY2Ni03LjIxNSAzLjI3NC0yLjQyNiA0LjkxNy01LjE3IDQuOTE3LTguMjM4IDAtMi4xMjktLjgxMS0zLjg5OC0yLjQyNy01LjMwMS0xLjYxNy0xLjQwOC0zLjQxLTIuMTA5LTUuMzY0LTIuMTA5LTQuOTQzIDAtMTAuMTM2IDIuOTgyLTE1LjU4OCA4Ljk0NWwtMi41NTMtMS45MThjNS42MTktOC41MTYgMTIuNTE3LTEyLjc3NyAyMC42OTItMTIuNzc3IDMuNTc2IDAgNi42MDIuODk1IDkuMDcgMi42ODQgMi44OTYgMS45NjUgNC4zNDYgNC42NDUgNC4zNDYgOC4wNTEgMCAyLjM4Ny0xLjAyNCA0LjcyNS0zLjA2NyA3LjAyMS0xLjE5NSAxLjI3OS0zLjIzOCAzLjAyNS02LjEzMyA1LjI0bC0xLjE0OSAxLjAyM2MuNTEtLjA4MiAxLjE0OS0uMTI5IDEuOTE4LS4xMjkgMy43NDggMCA2LjgxIDEuNDMgOS4xOTUgNC4yNzcgMi4zODYgMi44NTIgMy41NzYgNi4xMTMgMy41NzYgOS43NzEgMCA2LjQ3NS0yLjcyNCAxMS44NC04LjE3NyAxNi4wOTYtNC45MzggNC4wODYtMTAuNjg3IDYuMTM1LTE3LjI0IDYuMTM1LTYuMDUxIDAtMTAuNzc1LTEuMjc5LTE0LjE4LTMuODM2bDEuNzg4LTIuNTUzYzQuMDAyIDEuODcxIDcuNjYxIDIuODEzIDEwLjk4MiAyLjgxMyA0Ljc3MSAwIDkuMDI5LTEuNTc0IDEyLjc3Ni00LjczIDMuNzQ4LTMuMTQ4IDUuNjE5LTcuMDY4IDUuNjE5LTExLjc1MiAwLTMuMTUtLjkzNi01LjgzLTIuODA3LTguMDQ1LTEuODc3LTIuMjE1LTQuMzQ2LTMuMzIyLTcuNDEyLTMuMzIyLTIuNzIyLjAwMS01Ljc0NyAxLjEwOS05LjA2OCAzLjMyM3onIGZpbGw9JyMwRDBGMEYnLz48L2c+PC9zdmc+Cg==","{14}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM2LjMwOCAyMC40NzF2NDkuMDUzYzAgNS43ODkgMi40MjcgOC42ODQgNy4yNzYgOC42ODRoMS4xNTR2My4zMjJoLTI2LjA2MnYtMy4zMjJoMS42NjNjNC45MzggMCA3LjQwNy0yLjg5NSA3LjQwNy04LjY4NHYtMzIuMTkxYzAtNS44NzktMi4wOS04LjgxNi02LjI1OS04LjgxNmgtMi41NTd2LTMuMzJoMS4wMjNjNS4wMjEgMCA5LjU3OS0xLjU3NCAxMy42NjUtNC43MjVsMi42OS0uMDAxem00My4wNDcgNDMuNjg3djUuMTA5YzAgNS43MDcgMS45OTYgOC41NjEgNi4wMDMgOC41NjFoMS42NTh2My4zMTZoLTI0LjM5OHYtMy4zMTZoMS45MThjNC4wMDMgMCA2LjAwNC0yLjgxMyA2LjAwNC04LjQzdi01LjI0aC0yNC41Mjh2LTUuMTA5bDI1LjkzMi0zNy44MTRoNy40MTJ2MzguNTc4aC42MzljMi40NyAwIDQuMjk5LTEuOTUzIDUuNDg5LTUuODczaDMuMDY2bC0xLjUzMyAxMC4yMTktNy42NjItLjAwMXptLTYuNzczLTUuMTA5di0zMi4xODlsLTIxLjcxNiAzMi4xODloMjEuNzE2eicgZmlsbD0nIzBEMEYwRicvPjwvZz48L3N2Zz4K","{15}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48cGF0aCBkPSdNMTAwIDQ5Ljk5OGMwIDI3LjYxNS0yMi4zODcgNTAuMDAyLTUwLjAwMiA1MC4wMDItMjcuNjEzIDAtNDkuOTk4LTIyLjM4Ny00OS45OTgtNTAuMDAyIDAtMjcuNjEzIDIyLjM4NS00OS45OTggNDkuOTk4LTQ5Ljk5OCAyNy42MTUgMCA1MC4wMDIgMjIuMzg1IDUwLjAwMiA0OS45OTh6JyBpZD0nU2hhcGUnIGZpbGw9JyNDQUM1QzAnLz48cGF0aCBkPSdNMzQuNjcgMTguMTI5djUwLjg0YzAgNi4wNDUgMi41MTYgOS4wNyA3LjUzNyA5LjA3aDEuMjc3djMuNDQ1aC0yNy4wNzh2LTMuNDQ1aDEuNzg3YzUuMTA5IDAgNy42NjYtMy4wMjUgNy42NjYtOS4wN3YtMzMuMzQ0YzAtNi4xMjktMi4xNzItOS4xOTUtNi41MTgtOS4xOTVoLTIuNjgydi0zLjQ0OWgxLjAyM2M1LjI4MSAwIDEwLjA0Ny0xLjYxNyAxNC4zMDUtNC44NTJoMi42ODN6bTE3Ljg4NSAxLjI3M2gyMy4xMjFjMi45ODQgMCA0Ljc3MS0uMzM2IDUuMzY5LTEuMDJoMy4zMjJsLTEuOTE4IDguNjg4aC0yOC4yMjlsLTIuNjgyIDEyLjUxNmMzLjk5OC0xLjYxNyA3LjU3OC0yLjQyOCAxMC43MjktMi40MjggNi4xMzMgMCAxMS4zMDUgMi4wNDkgMTUuNTIgNi4xMzUgNC4yMTUgNC4wODQgNi4zMiA5LjE5MyA2LjMyIDE1LjMyOCAwIDcuMTUyLTIuNzIzIDEyLjg5OC04LjE3IDE3LjI0Ni01LjExNSA0LTExLjI5MSA2LjAwNC0xOC41MjUgNi4wMDQtNC4yNTggMC04LjQzLS42NDEtMTIuNTE2LTEuOTE4bDEuMjczLTMuMTkxYzMuNDA0LjkzNCA2LjQzIDEuNDAyIDkuMDcgMS40MDIgNS4yODEgMCA5LjkwMi0xLjc0MiAxMy44NjEtNS4yMzQgMy45NjEtMy40OTIgNS45MzYtNy44NCA1LjkzNi0xMy4wMzEgMC00LjUxMi0xLjQ2NS04LjIxOS00LjQwMi0xMS4xMTMtMi45NDEtMi44OTUtNi42MjEtNC4zNDQtMTEuMDUxLTQuMzQ0LTQuMTcyIDAtOC4wNDUgMS40NDktMTEuNjI1IDQuMzQ0bC0yLjE2OC0uMzgzIDYuNzY1LTI5LjAwMXonIGZpbGw9JyMwRDBGMEYnLz48L2c+PC9zdmc+Cg==","{16}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyB0cmFuc2Zvcm09J3RyYW5zbGF0ZSgwIC0xKScgZmlsbD0nbm9uZSc+PGNpcmNsZSBmaWxsPScjQ0FDNUMwJyBjeD0nNTAnIGN5PSc1MC45OTgnIHI9JzUwJy8+PHBhdGggZD0nTTM0LjMwOSAxOS4zMjJ2NTAuODM4YzAgNi4wNDcgMi41MTYgOS4wNyA3LjUzNyA5LjA3aDEuMjc5djMuNDQ3aC0yNy4wODJ2LTMuNDQ3aDEuNzg5YzUuMTA5IDAgNy42NjgtMy4wMjMgNy42NjgtOS4wN3YtMzMuMzQ0YzAtNi4xMjctMi4xNzQtOS4xOTMtNi41Mi05LjE5M2gtMi42ODJ2LTMuNDUxaDEuMDIzYzUuMjgxIDAgMTAuMDQ5LTEuNjE3IDE0LjMwNS00Ljg1aDIuNjgzem0yMC4wNTggMjcuNDU5YzQuNjg0LTQuNDIyIDkuNDA4LTYuNjQzIDE0LjE4LTYuNjQzIDUuMTA5IDAgOS4yMzYgMi4wNDkgMTIuMzkxIDYuMTM1IDIuODk1IDMuNzQ2IDQuMzQgOC4zMDUgNC4zNCAxMy42NjggMCA1Ljc5MS0xLjcwMyAxMC44NTktNS4xMDkgMTUuMTk5LTMuNzQ2IDQuODU1LTguNDMgNy4yODEtMTQuMDQ5IDcuMjgxLTYuNjQzIDAtMTIuMDA2LTIuODk1LTE2LjA5OC04LjY4NC0zLjU3Ni01LjEwOS01LjM2NS0xMS4xNTYtNS4zNjUtMTguMTQxIDAtNy40OSAyLjA0My0xNC4zNzEgNi4xMzUtMjAuNjMxIDQuMDg0LTYuMjU4IDkuNTgtMTAuNzA3IDE2LjQ3Ny0xMy4zNDggMy44My0xLjQ1MSA3LjkyMi0yLjE3NCAxMi4yNjItMi4xNzR2My4zMjJjLTkuMTkzLjQyOC0xNi4wNTEgNC4wOTItMjAuNTYzIDEwLjk4OC0yLjMwNCAzLjU3OS0zLjgzNyA3LjkxOS00LjYwMSAxMy4wMjh6bS0uNjQgNi4yNjRjLS4wODIgMS4yNzMtLjEyOSAyLjU1My0uMTI5IDMuODMgMCA0LjkzOC44NTIgOS40OTYgMi41NTkgMTMuNjcyIDIuMjEzIDUuNDQ1IDUuNDQ1IDguMTcgOS43MDcgOC4xNyAzLjY2IDAgNi40My0xLjg3MSA4LjMwMS01LjYxOSAxLjM2My0yLjg5NSAyLjA0My02LjQzIDIuMDQzLTEwLjYwNCAwLTQuMzQtLjYzMy04LjA4OC0xLjkxMi0xMS4yMzYtMS44NzctNC4yNjItNC43MjktNi4zODktOC41NjEtNi4zODktNC42ODQgMC04LjY4NiAyLjcyNS0xMi4wMDggOC4xNzZ6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{U/R}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48cGF0aCBkPSdNODUuMzQ5IDE0LjYzN2M5LjA1MiA5LjA1MSAxNC42NTEgMjEuNTUxIDE0LjY1MSAzNS4zNiAwIDI3LjYxNi0yMi4zODcgNTAuMDAzLTUwIDUwLjAwMy0xMy44MDcgMC0yNi4zMDUtNS41OTYtMzUuMzU0LTE0LjY0NicgaWQ9J1NoYXBlJyBmaWxsPScjRTQ5OTc3Jy8+PHBhdGggZD0nTTE0LjY0NiA4NS4zNTRjLTkuMDQ5LTkuMDQ3LTE0LjY0Ni0yMS41NDktMTQuNjQ2LTM1LjM1NiAwLTI3LjYxMyAyMi4zODctNDkuOTk3IDUwLTQ5Ljk5NyAxMy44MDIgMCAyNi4zMDEgNS41OTQgMzUuMzQ5IDE0LjYzNycgaWQ9J1NoYXBlJyBmaWxsPScjQzFEN0U5Jy8+PHBhdGggZD0nTTg4LjMgNzQuNDM5Yy0xLjcxOCA0LjEtNS4xMyA2LjE0Ni0xMC4yNCA2LjE0Ni0uOTM3IDAtMS45NTIuMTE1LTMuMDQ0LjM1LTEuNjM5LjM1My0yLjQ1OC44NC0yLjQ1OCAxLjQ2NSAwIC4xOTUuMTM2LjQxOC40MS42NzQuMjcyLjI1My41MDguMzgxLjcwMy4zODEtLjk3NyAwLS4zMTQuMDI5IDEuOTg3LjA4NSAyLjMwMy4wNiAzLjc0Ny4wODkgNC4zMzMuMDg5LTMuMzk0IDEuOTg5LTkuMDcgMi45MDYtMTcuMDI5IDIuNzUtMi42MTQtLjAzNy00Ljg1Ny0xLjE4OC02LjcyOS0zLjQ1MS0xLjgzNS0yLjE0Ni0yLjc1MS00LjU0NS0yLjc1MS03LjE5NyAwLTIuODEuOTQ2LTUuMTk4IDIuODM5LTcuMTcgMS44OS0xLjk2OCA0LjI0Mi0yLjk1MyA3LjA1MS0yLjk1My42MjMgMCAxLjQ1My4xMzcgMi40ODYuNDA4IDEuMDM0LjI3MyAxLjcyNy40MSAyLjA3Ny40MSAxLjQ0NCAwIDMuMjM5LS41OTcgNS4zODUtMS43ODUgMi4xNDYtMS4xODkgMy4xNi0xLjc4NSAzLjA0My0xLjc4NS0uMzkxIDQuMDk3LTEuNzU2IDYuODQ5LTQuMDk3IDguMjUtMS42NzguOTc4LTIuNTE2IDEuOTM0LTIuNTE2IDIuODY3IDAgLjU4Ni4zNSAxLjA1NSAxLjA1MiAxLjQwNi41NDYuMjcxIDEuMTUxLjQwOCAxLjgxNS40MDggMS4wMTQgMCAyLjAwOC0uNjIzIDIuOTg0LTEuODcyLjk3NC0xLjI0NyAxLjQwMy0yLjM3OSAxLjI4Ni0zLjM5NC0uMTE2LTEuMTcyLS4wMzctMi41NzYuMjM1LTQuMjEzLjA3Ny0uNDcuMzYxLTEuMDQ1Ljg0OC0xLjcyNy40ODgtLjY4NC45MjgtMS4xMDQgMS4zMTctMS4yNjIgMCAuMzU0LS4xMjcuOTM5LS4zOCAxLjc1Ni0uMjU0LjgyLS4zOCAxLjQyNy0uMzggMS44MTQgMCAuODYuMjM0IDEuNTIzLjcwMyAxLjk5LjcwMS0uMjcxIDEuMzI0LTEuMTUgMS44NzItMi42MzQuNDY4LTEuMTMuNzQtMi4yMjQuODItMy4yNzQtMS42NC0uMDc4LTMuMjExLS44Mi00LjcxMS0yLjIyNy0xLjUwMS0xLjQwNC0yLjI1Mi0yLjkyNS0yLjI1Mi00LjU2MyAwLS4yNzEuMDM3LS41NDcuMTE3LS44MTkuMjMyLjM1My41ODMuODk5IDEuMDUzIDEuNjQuNjYyLjk3NSAxLjE3IDEuNDYzIDEuNTIxIDEuNDYzLjQ2OCAwIC43MDItLjQ4OC43MDItMS40NjMgMC0xLjI0OS0uMzMyLTIuMzgtLjk5NS0zLjM5NS0uNzQzLTEuMjExLTEuNjk5LTEuODE0LTIuODY3LTEuODE0LS41NDggMC0xLjM2Ni4yOTItMi40NTguODc4LTEuMDkzLjU4NC0yLjA4OC44NzgtMi45ODMuODc4LS4yNzMgMC0xLjQ4NC0uMzUzLTMuNjI5LTEuMDU0IDMuNzgzLS42MjUgNS42NzYtMS4xOSA1LjY3Ni0xLjY5OSAwLTEuMzI1LTIuNTk0LTIuMjIzLTcuNzgzLTIuNjg4LS41MDgtLjAzOS0xLjQ0My0uMTE3LTIuODA5LS4yMzUuMTU1LS4xOTQgMS4yNjgtLjQwNyAzLjMzNi0uNjQ0IDEuNzU1LS4xOTIgMi45ODMtLjI5MyAzLjY4NS0uMjkzIDkuMjg1IDAgMTUuMTc1IDQuNTA2IDE3LjY3MyAxMy41MjEuNDMxLS4zNTguNjQ1LS45NS42NDUtMS43OCAwLTEuMDY4LS4zMTItMi40MTItLjkzNy00LjAzMy0uMjM1LS42MzUtLjYwNy0xLjU4NC0xLjExMy0yLjg0OSAzLjE5OCA0LjA3NSA0LjggNy45MzggNC44IDExLjU4MyAwIDEuOTIyLS40NTEgMy42NjctMS4zNDggNS4yMzItLjU4MyAxLjA1OS0xLjY3OCAyLjQxLTMuMjc2IDQuMDU5LTEuNiAxLjY0NS0yLjY5MSAyLjkxOS0zLjI3NyAzLjgyMSAyLjE0Ni0uNTg2IDMuNTUxLTEuMDM1IDQuMjE0LTEuMzQ3IDEuNDgxLS42NjQgMi44MjgtMS42NiA0LjAzNy0yLjk4NSAwIC41MS0uMjE1IDEuMjcyLS42NDMgMi4yODF6bS0yNS41MTQtMjIuOTk2YzAgLjcwMS0uMzkxIDEuMTUyLTEuMTcgMS4zNDhsLTEuNTIxLjIzMmMtLjU0Ny4yNzItMS4zNDcgMS4zNDgtMi4zOTggMy4yMTktLjExOS0uNTg0LS4yOTMtMS40MDMtLjUyOC0yLjQ1Ny0uMzUxLjAzNy0uOTM1LjM1Mi0xLjc1NS45MzYtLjM1MS4yNzMtLjkxNy42ODQtMS42OTkgMS4yMjkuMjM1LTEuNDAzIDEuMDE3LTIuODI2IDIuMzQyLTQuMjcxIDEuNDA0LTEuNTk4IDIuNzctMi4zOTYgNC4wOTYtMi4zOTYgMS43NTUtLjAwMiAyLjYzMy43MTkgMi42MzMgMi4xNnptMTAuMTgyIDUuMzg1YzAgLjY2Mi0uMzYxIDEuMjItMS4wODMgMS42NjgtLjcyMi40NDctMS40MzQuNjczLTIuMTM1LjY3My0uOTM4IDAtMS43NzctLjUyNC0yLjUxNy0xLjU4MS0uODk4LTEuMjg1LTEuODE0LTIuMTI1LTIuNzUtMi41MTYuMTk0LS4xOTUuNDI5LS4yOTMuNzA0LS4yOTMuMzQ5IDAgLjk0NC4yNzEgMS43ODMuODE4LjgzNy41NDkgMS4zNzUuODIgMS42MS44Mi4xOTUgMCAuNTE2LS4yNzEuOTY0LS44Mi40NDgtLjU0Ny45NDYtLjgxOCAxLjQ5My0uODE4IDEuMjg4IDAgMS45MzEuNjg0IDEuOTMxIDIuMDQ5em0tMzEuODUyLTguNjcyYy0yLjY5MyAyLjczNi02LjAwNyA0LjEwNy05Ljk0NiA0LjEwNy00LjQyMiAwLTcuOTI5LTEuNTEzLTEwLjUyNC00LjU0MS0yLjQ1Mi0yLjg4NS0zLjY3Ny02LjU2LTMuNjc3LTExLjAyNyAwLTQuODA1IDIuMDktMTAuMjg0IDYuMjcyLTE2LjQzNiAzLjQxMS01LjA0NCA3LjQyMy05LjQ2NSAxMi4wMzctMTMuMjYyLS42NzMgMy4wNzctMS4wMDkgNS4yNjItMS4wMDkgNi41NTkgMCAyLjk4LjkzNSA1Ljg4OSAyLjgxMSA4LjcyMyAyLjMwNiAzLjM2MyA0LjA2MSA1Ljg2MyA1LjI2MiA3LjQ5NiAxLjg3NCAyLjgzNiAyLjgxMiA1LjYgMi44MTIgOC4yODctLjAwMSAzLjk5My0xLjM0OCA3LjM1NC00LjAzOCAxMC4wOTR6bS0uMDcyLTE1LjM4NmMtLjcyMS0xLjYxMS0xLjU2MS0yLjY4MS0yLjUyMy0zLjIxMS4xNDUuMjg5LjIxNi42OTcuMjE2IDEuMjI4IDAgMS4wMS0uMjg3IDIuNDUtLjg2NCA0LjMyM2wtLjkzOCAyLjg4NWMwIDEuNjgxLjg0MSAyLjUyMSAyLjUyMyAyLjUyMSAxLjc3NyAwIDIuNjY4LTEuMTc4IDIuNjY4LTMuNTMxLS4wMDEtMS4yMDItLjM2Mi0yLjYwNy0xLjA4Mi00LjIxNXonIGZpbGw9JyMwRDBGMEYnLz48L2c+PC9zdmc+Cg==","{G/U}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48cGF0aCBkPSdNODUuMzUgMTQuNjM3YzkuMDUzIDkuMDUxIDE0LjY1IDIxLjU1MSAxNC42NSAzNS4zNiAwIDI3LjYxNi0yMi4zODcgNTAuMDAzLTUwIDUwLjAwMy0xMy44MDcgMC0yNi4zMDUtNS41OTYtMzUuMzU0LTE0LjY0NicgaWQ9J1NoYXBlJyBmaWxsPScjQzFEN0U5Jy8+PHBhdGggZD0nTTE0LjY0NiA4NS4zNTRjLTkuMDUtOS4wNDctMTQuNjQ2LTIxLjU0OS0xNC42NDYtMzUuMzU3IDAtMjcuNjEzIDIyLjM4Ny00OS45OTcgNTAtNDkuOTk3IDEzLjgwMyAwIDI2LjMwMSA1LjU5MyAzNS4zNSAxNC42MzcnIGlkPSdTaGFwZScgZmlsbD0nI0EzQzA5NScvPjxwYXRoIGQ9J003Ni43MjMgODMuNjc1Yy0yLjY5MyAyLjczOS02LjAwOCA0LjEwOS05Ljk0NSA0LjEwOS00LjQyNCAwLTcuOTMtMS41MTUtMTAuNTI0LTQuNTQxLTIuNDUyLTIuODg0LTMuNjc4LTYuNTU4LTMuNjc4LTExLjAyOCAwLTQuODA0IDIuMDkxLTEwLjI4MSA2LjI3Mi0xNi40MzQgMy40MS01LjA0NyA3LjQyNC05LjQ2NyAxMi4wMzYtMTMuMjY0LS42NzUgMy4wNzYtMS4wMDkgNS4yNjItMS4wMDkgNi41NjEgMCAyLjk4LjkzNiA1Ljg4NiAyLjgxMSA4LjcyMSAyLjMwNyAzLjM2NSA0LjA2MiA1Ljg2NCA1LjI2MiA3LjQ5NiAxLjg3MyAyLjgzNSAyLjgxMyA1LjYgMi44MTMgOC4yODktLjAwMiAzLjk5LTEuMzQ5IDcuMzU0LTQuMDM4IDEwLjA5MXptLS4wNzUtMTUuMzg4Yy0uNzE5LTEuNjA5LTEuNTYxLTIuNjgtMi41MjEtMy4yMDguMTQ2LjI4OC4yMTcuNjk4LjIxNyAxLjIyNiAwIDEuMDEtLjI4NyAyLjQ1My0uODY1IDQuMzI0bC0uOTM4IDIuODg1YzAgMS42OC44NCAyLjUyMiAyLjUyMSAyLjUyMiAxLjc3NyAwIDIuNjY4LTEuMTc3IDIuNjY4LTMuNTMyIDAtMS4yMDEtLjM2LTIuNjA4LTEuMDgyLTQuMjE3em0tMjUuMDA3LTM0LjAwMmMwIC43NTctLjI5MyAxLjQzOC0uODc5IDIuMDQzLS41ODcuNjA0LTEuMjU5LjkwNC0yLjAxNy45MDQtMS4yMDcgMC0yLjA5OC0uNTY1LTIuNjYzLTEuN2wtMi42NjYtLjExMmMtLjU2OCAwLTEuNjg1LjI0NS0zLjM0Ni43MzYtMS43NzcuNDktMi43OTguODg4LTMuMDY0IDEuMTkxLS40MTQuNDUzLS43NTUgMS41MTQtMS4wMiAzLjE3Ni0uMjI4IDEuMzYxLS4zMzkgMi4zNjMtLjMzOSAzLjAwOCAwIDEuMDE4LjE2IDEuNzY3LjQ4IDIuMjQuMzIxLjQ3Mi45ODQuODY3IDEuOTg0IDEuMTg4IDEuMDAxLjMxOSAxLjYxNi41MDIgMS44NDQuNTM4LjE1MSAwIC4zOTYtLjAxOC43MzctLjA1N2guNjgxYy40OTEgMCAxLjAwMS4wNzggMS41MzIuMjI4Ljc1NS4yMjYgMS4wNzcuNTI4Ljk2NS45MDYtLjUzMS0uMDczLTEuNDU2LjAzOC0yLjc3OC4zNDFsMS41ODYuNzk1YzAgLjQ1NC0uNjQzLjY4LTEuOTI4LjY4LS4zNDIgMC0uODA1LS4wNzQtMS4zOS0uMjI2LS41ODctLjE1My0uOTc1LS4yMjktMS4xNjMtLjIyOWgtLjczNmMtLjAzOS4zNzktLjE1MS45NDQtLjM0MSAxLjcwMy0uNjQ1LS4wMzktMS4zOTktLjQxOC0yLjI3LTEuMTM1LS44Ny0uNzE5LTEuNDE4LTEuMDc4LTEuNjQzLTEuMDc4LS4yMjggMC0uNTUxLjM1OS0uOTY1IDEuMDc4LS40MTcuNzE3LS42MjQgMS4yMDgtLjYyNCAxLjQ3NS0uNDkxLS4yNjctLjkwNS0uNzU4LTEuMjQ5LTEuNDc1LS4xNTEtLjQ5NC0uMzIxLS45ODQtLjUwOS0xLjQ3Ny0uMzc5LjAzNy0xLjA3Ny44MzQtMi4wOTkgMi4zODRoLS4yODRjLS4wNzYtLjExNC0uMzYtLjkwNy0uODUyLTIuMzg0LTEuMTcyLS4zNzctMi4yNjgtLjU2NS0zLjI4OC0uNTY1LS40OTEgMC0xLjI0OS4xMTItMi4yNy4zNDFsLTEuNTg2LS4xMTFjLjIyNS0uMjI5Ljg4OC0uNjY0IDEuOTgzLTEuMzA3IDEuMjg0LS43NTggMi4yNjktMS4xMzYgMi45NDktMS4xMzYuMTEyIDAgLjI2NC4wMjEuNDU0LjA1OC4xODguMDQxLjM0MS4wNTkuNDU0LjA1OS4yNjMgMCAuNjg5LS4xNDMgMS4yNzUtLjQyOC41ODYtLjI4My45MjctLjUzNyAxLjAxOS0uNzY1LjA5OC0uMjI5LjE0Ni0uODEzLjE0Ni0xLjc1OSAwLTIuMTU0LS41NjgtMy43NjItMS43MDMtNC44MjEtLjk4My0uOTQyLTIuNjA4LTEuNjI0LTQuODc3LTIuMDQyLS42MDQgMi4xNTQtMi4zMDcgMy4yMzQtNS4xMDMgMy4yMzQtLjkwOSAwLTEuODE1LS41NDctMi43MjMtMS42NDUtLjkwNS0xLjEtMS4zNjEtMi4xLTEuMzYxLTMuMDA4IDAtMS40LjU4Ni0yLjU1MSAxLjc1OC0zLjQ2LS45NDQtLjk4MS0xLjQxOC0xLjk4My0xLjQxOC0zLjAwNSAwLS45NDUuMjkyLTEuNzc3Ljg3OS0yLjQ5Ni41ODYtLjcxNiAxLjM1My0xLjEzNCAyLjI5Ny0xLjI0OS0uMDc0LTEuMjA3LjMyMS0yLjA0MiAxLjE5MS0yLjQ5NC0uNDE2LS40MTUtLjYyMy0xLjE1MS0uNjIzLTIuMjExIDAtMS4yNDcuNDE0LTIuMjg2IDEuMjQ3LTMuMTE4LjgzLS44MzIgMS44NzItMS4yNSAzLjExNy0xLjI1IDEuMzYzIDAgMi40NzkuNDc1IDMuMzQ4IDEuNDE4IDEuMDk4LTMuNzQyIDMuNDU5LTUuNjEzIDcuMDg5LTUuNjEzIDEuODkgMCAzLjU1NC43NTcgNC45OSAyLjI3MS41My41NjMuNzkzLjg2OC43OTMuOTA1LS40NTIgMC0uMjI1LS4wODYuNjgxLS4yNTYuOTA5LS4xNyAxLjU2OC0uMjU2IDEuOTg2LS4yNTYgMS40NzQgMCAyLjc3OC41NSAzLjkxNSAxLjY0Ni45ODIuOTg0IDEuNjYzIDIuMjI5IDIuMDQyIDMuNzQyLjI2My4wMzguNjc5LjE1IDEuMjQ2LjM0LjgzMS40MTggMS4yNDggMS4xMzUgMS4yNDggMi4xNTYgMCAuMTg5LS4xNTIuNTQ5LS40NTQgMS4wNzggMi40MTkgMS4zNjEgMy42MyAzLjI1IDMuNjMgNS42NyAwIC42ODEtLjI2NiAxLjYyOC0uNzkzIDIuODM3Ljk4NS41NjkgMS40NzggMS40MDIgMS40NzggMi40OTl6bS0yMy4zNjggMi40OTZ2LS43MzdjMC0uODctLjQyNS0xLjY2NC0xLjI3Ni0yLjM4Mi0uODUxLS43MjEtMS43MS0xLjA3Ny0yLjU4LTEuMDc3LTEuMDYgMC0yLjA0Mi4yNDUtMi45NDkuNzM1IDIuMDA0LS4xMTEgNC4yNzIgMS4wMzkgNi44MDUgMy40NjF6bS0xLjAyMS03LjAzMWMtLjU2Ni0uNjQ2LTEuMDU4LTEuMzA3LTEuNDc0LTEuOTg2LTEuNTg5LjQxNi0yLjM4Mi44ODktMi4zODIgMS40MTYuNDUyLS4wMzcgMS4xMTUuMDQ5IDEuOTgzLjI1Ni44Ny4yMSAxLjQ5Ni4zMTQgMS44NzMuMzE0em0zLjQ2My0xLjc2di0yLjQ5NmMtLjkxLS4xNS0xLjQ1OS0uMjI3LTEuNjQ2LS4yMjd2Ljg1MWwxLjY0NiAxLjg3MnptNy4zNzEtMS41ODhjLS40NTQtLjE4OS0xLjMwNS0uNTY3LTIuNTU0LTEuMTM1djQuODc3YzEuNzc5LTEuMDIyIDIuNjI4LTIuMjY4IDIuNTU0LTMuNzQyem0zLjExNiA2LjY5MmwtMS4yNDYtMS41MjljLS43NTUuNTI5LTEuNTIxIDEuMDY3LTIuMjk4IDEuNjE1LS43NzUuNTQ3LTEuNDQ1IDEuMTYzLTIuMDExIDEuODQ0IDEuNjk5LS45MTEgMy41NTQtMS41NTEgNS41NTUtMS45M3onIGZpbGw9JyMwRDBGMEYnLz48L2c+PC9zdmc+Cg==","{U/P}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48Y2lyY2xlIGZpbGw9JyNDMUQ3RTknIGN4PSc1MCcgY3k9JzUwJyByPSc1MCcvPjxwYXRoIGQ9J003Ny4zMDcgNDkuOTI4Yy4wNTktNS4zNDQtMS42MzktMTAuNzM4LTQuOTY3LTE0LjkyOC0xLjYwNy0xLjc3LTIuOTMxLTMuNzg3LTQuNjMzLTUuNDYxLTMuNzU1LTMuNzI1LTkuMzc1LTMuOTczLTEzLjg5Ni02LjMyLS4yNjQtMi4zNTctMS4xMjUtNC43MTUtLjYwNC03LjA5NC4xNTktLjc5MS4zOTMtMS41OTItLjAyOS0yLjM0OC0xLjE4Ny0yLjczMi0uMTY2LTUuNjk5LS4zNzctOC41NDctLjE1OC0xLjQ4OC0uMDU4LTMuMzA5LTEuNDc2LTQuMjI5LS4zMyAzLjA5OC0xLjQ2OSA1Ljk4LTIuMzkyIDguOTE4LS40MjYgMi4yOTEtLjQyNiA0LjY3Ni0xLjQxMyA2LjgzNi42MjcgMi4xODktLjYxMyA0LjAzMS0xLjk1NSA1LjY0Ni0yLjk2OCAxLjUyLTYuNDk2IDEuODgxLTkuMDc4IDQuMTA5LTEuODQgMS41NjMtMy44MjggMi45MzItNS44ODcgNC4yMDMtMS41NDUgMS45MzQtMy4yNTYgMy43OTctMy45NDUgNi4yNC0yLjc2MiAzLjMzNC0zLjA4OCA3LjgxMS00LjY1NCAxMS43MTctLjAyOSA1Ljc5OSAxLjE0NiAxMi4wNDMgNC44NSAxNi42OTEgMi42NSAyLjE4OCA0LjUwMiA1LjEzMSA3LjE0OSA3LjMxOCAyLjU0MSAxLjUxOCA1LjI1MiAyLjc2NCA3Ljg3NSA0LjEyNyAxLjcwOS40IDMuNDc1LjU5NiA1LjE3NiAxLjA2MSAxLjM3OSA3LjEwOSAyLjMyMiAxNC4zODkgNS4wOTIgMjEuMTMzLjkxOC0yLjc2OC44MDctNS43MzYgMS42LTguNTMzIDEuMTE5LTQuMTM1LTEuMTc2LTguNDM5LjExNy0xMi41IDEuOTM4LTEuNzMyIDUuMTctLjYwNyA3LjMyLTIuMDk0IDQuMDkyLTIuNTIzIDguNDIyLTQuOTggMTEuMzkxLTguODQgMS4xMDUtMi4yMTkgMy40MjYtMy44NzcgMy40MjYtNi41MzkuMDE5LTMuNTgzIDIuMTA5LTYuOTQxIDEuMzEtMTAuNTY2em0tMzAuMzczIDIxLjkzMmMtMi45NjUtLjcyMS01LjcyNy0yLjEzOS04LjIxMy0zLjg3MS0yLjY3Ni0xLjc4My0zLjY3NC01LjEwOS02LjMxNC02LjkzNC0yLjQ3My0yLjk0OS0xLjkzOC02Ljk4LTIuOTUxLTEwLjQ3NS40MDYtMi40MzkuODg1LTQuODU3IDEuMTM5LTcuMzI2IDEuMjA1LTEuOTU1IDMuMDY2LTMuNTE0IDMuNTgyLTUuODY5IDEuNzY5LTIuNTMzIDQuNDU5LTQuMjg1IDYuNjE5LTYuNDggMS41NzItMS44MTMgNC4wNzQtMS4wNDcgNi4xMzktMS4xMTktLjIwNCAyLS4zNjYgNC4wNy4xMzQgNi4wNDEuMjQ0IDEuMjEzLjc5MSAyLjQwOC42MDQgMy42NzYtLjQxNCAyLjY5OS41OTggNS40MDgtLjExNyA4LjA3Ni0xLjQ0MyA1LjU3Ni4xMzEgMTEuMjA5LjI2OCAxNi44MzItLjIwNiAyLjQ4OC0uMzIzIDQuOTk4LS44OSA3LjQ0OXptMjIuNDc3LTEwLjU3Yy0xLjk2MyAxLjM5OC0zLjYzNyAzLjExMS01LjM1IDQuNzg1LTIuOTc5IDIuMDYxLTUuOTI0IDQuMjQtOS40NjkgNS4yNy4zMTktMi41MjkuNjMxLTUuMTMxLS4xNzQtNy42MDctMS45NzktNS41OTQuNDQ0LTExLjQ0NS44NTQtMTcuMTAyLS4zNjEtMy4zNjMtLjAxNy02Ljk1MS0xLjU2LTEwLjA0OS0uMjAxLTIuMzI2LjgwNi00LjU3NCAxLjQ4Ni02Ljc2NCAyLjM0Mi45MzYgNC41NDcgMi4xOTcgNi40OTYgMy44MiAyLjM1NCAxLjc2NiA1Ljk2MSAyLjkwOCA2LjQ4OCA2LjE5OS4yNjggMi4xNiAyLjYzMyAzLjQ2NyAyLjU2NCA1LjY3OC0uMTQ2IDUuMjU2LjU3OSAxMC43NTItMS4zMzUgMTUuNzd6JyBmaWxsPScjMTExMjEyJy8+PC9nPjwvc3ZnPgo=","{W}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48Y2lyY2xlIGZpbGw9JyNGOEY2RDgnIGN4PSc1MCcgY3k9JzUwJyByPSc1MCcvPjxwYXRoIGQ9J005Ny42OTEgNTcuMDY0Yy02LjU2MS0zLjY5OS0xMC43NjgtNS41NTEtMTIuNjE3LTUuNTUxLTEuMzQ0IDAtMi4zOTUgMS4wMzItMy4xNTQgMy4wOTItLjc1OCAyLjA2My0yLjI3IDMuMDktNC41NDEgMy4wOS0uOTI2IDAtMi44MTgtLjMzNi01LjY3OC0xLjAwOC0xLjU5OCAyLjQ0LTIuMzk4IDMuOTk2LTIuMzk4IDQuNjY4IDAgLjkyNi42ODkgMi4wMTYgMi4wNjQgMy4yODEgMS4zNzUgMS4yNjIgMi41MzUgMS44OTEgMy40ODIgMS44OTEuNjAyIDAgMS40MTYtLjEyNSAyLjQ0OS0uMzc5IDEuMDMxLS4yNSAxLjcyMS0uMzc3IDIuMDY0LS4zNzcgMS4wMzMgMCAxLjU0NyAxLjg5MyAxLjU0NyA1LjY3OCAwIDMuNjE3LS44NCA5LjE2OC0yLjUyMyAxNi42NTQtMi4xODgtOC41OC00LjUtMTIuODcxLTYuOTM4LTEyLjg3MS0uMzM4IDAtMS4wMzEuMjUyLTIuMDgyLjc2LTEuMDUzLjUwMi0xLjgzLjc1NC0yLjMzNC43NTQtMi40MzggMC00LjYyNS0yLjIyNy02LjU2MS02LjY4OC0zLjg2OS41OS01LjgwNSAyLjU2Ny01LjgwNSA1LjkzNCAwIDEuNjg0Ljc3NyAzLjAyNyAyLjMzNiA0LjAzNSAxLjU1MyAxLjAwOCAyLjMzNCAxLjcyNyAyLjMzNCAyLjE0NSAwIDIuMjczLTMuMzI0IDUuNzY0LTkuOTY5IDEwLjQ3My0zLjUzMSAyLjUyMy01Ljk3MyA0LjI4OS03LjMxNiA1LjI5NyAxLjE3NC0xLjUxMiAyLjM1Mi0zLjQ4NyAzLjUzMy01LjkyOCAxLjM0NC0yLjc3NSAyLjAxOC00LjkyIDIuMDE4LTYuNDM2IDAtLjg0LS45NjctMi4wMi0yLjkwMi0zLjUzMy0xLjkzNi0xLjUxMi0yLjktMy4xMTEtMi45LTQuNzkzIDAtMS40MjguNTAyLTMuMTkzIDEuNTEyLTUuMjk5LTEuMDk0LTEuMjYyLTIuMzk1LTEuODk1LTMuOTEtMS44OTUtMy4zNjUgMC01LjA0NSAxLjA5Ni01LjA0NSAzLjI4djMuNDA2Yy4wODIgMi43NzYtMi4wMiA0LjE2NC02LjMxMSA0LjE2NC0zLjI3OSAwLTguNzkxLS43NTktMTYuNTI3LTIuMjcxIDguNzQ4LTIuMTg4IDEzLjEyMS00LjcxMSAxMy4xMjEtNy41NyAwIC4zMzYtLjE2OC0uNjcyLS41MDQtMy4wMjgtLjMzOC0yLjYwNCAxLjUxNC00Ljk2MSA1LjU1MS03LjA2My0uNzU4LTMuODY3LTIuNzczLTUuODA2LTYuMDU3LTUuODA2LS41MDQgMC0xLjQzMi44ODQtMi43NzUgMi42NDctMS4zNDYgMS43NzEtMi42MDcgMi42NTItMy43ODMgMi42NTItMi4wMiAwLTQuNjI5LTIuMTg2LTcuODIyLTYuNTYzLTEuNTE2LTIuMTg0LTMuODMtNS40MjQtNi45NDEtOS43MTUgMS45MzQgMS4wMTIgMy44NjkgMi4wMiA1LjgwNSAzLjAzMSAyLjUyMyAxLjE3NiA0LjU0MSAxLjc2NiA2LjA1NyAxLjc2NiAxLjE3OCAwIDIuMzM0LTEuMDMxIDMuNDY5LTMuMDkyIDEuMTM1LTIuMDYxIDIuNjI5LTMuMDkyIDQuNDc5LTMuMDkyLjI1NCAwIDEuOTM2LjUwNCA1LjA0NyAxLjUxNiAxLjU5Ni0yLjQzOSAyLjM5OC00LjI0OCAyLjM5OC01LjQyNiAwLTEuMDEtLjYxMS0yLjE2Ni0xLjgzLTMuNDcxLTEuMjIxLTEuMzAzLTIuMzM0LTEuOTU1LTMuMzQ0LTEuOTU1LS40MjIgMC0xLjA3Mi4xMjUtMS45NTcuMzc5LS44ODEuMjUyLTEuNTMzLjM3OS0xLjk1My4zNzktMS41MTYgMC0yLjI3My0xLjg5My0yLjI3My01LjY3OCAwLTEuMDEuOTY5LTYuNzcgMi45MDQtMTcuMjg1LS4wODYgMS4yNi40NjEgMy42MTcgMS42MzkgNy4wNjQgMS40MyA0LjIwNyAzLjExMSA2LjMwOSA1LjA0OSA2LjMwOS4zMzQgMCAxLjAwOC0uMjUyIDIuMDE4LS43NTggMS4wMDgtLjUwNCAxLjgwNy0uNzU0IDIuMzk2LS43NTQgMS45MzQgMCAzLjUzMSAxLjA5NCA0Ljc5NSAzLjI3N2wxLjg5MyAzLjQwNmMxLjc2NiAwIDMuMjM4LS42MjkgNC40MTQtMS44OTEgMS4xNzgtMS4yNjIgMS43NjgtMi43NzcgMS43NjgtNC41NDMgMC0xLjg1LS43NzctMy4yNi0yLjMzNC00LjIyNy0xLjU1OS0uOTY3LTIuMzM2LTEuNzAzLTIuMzM2LTIuMjA3IDAtMS43NjggMi43NzctNC43NTIgOC4zMjgtOC45NTggNC40NTctMy4zNjMgNy4zNTktNS4zNCA4LjcwNy01LjkzLTMuNjE3IDQuODc5LTUuNDI2IDguNDUxLTUuNDI2IDEwLjcyNCAwIDEuMTc4LjcxMyAyLjQ0MSAyLjE0NSAzLjc4NSAxLjc2NiAxLjU5OCAyLjc3NSAyLjczNCAzLjAyNyAzLjQwNi44NCAxLjkzOC43NTYgNC41ODYtLjI1MiA3Ljk0OSAyLjI3MSAxLjYgMy45OTQgMi4zOTYgNS4xNzQgMi4zOTYgMi40MzYgMCAzLjY1OC0xLjI2NCAzLjY1OC0zLjc4NSAwLS4yNTItLjEwNS0xLjA1MS0uMzE0LTIuMzk2LS4yMTMtMS4zNDQtLjI3My0yLjEwMi0uMTkxLTIuMjcxLjMzNi0xLjE3OCAyLjY1LTEuNzY4IDYuOTM5LTEuNzY4IDIuNjkxIDAgOC4yODMuNzU4IDE2Ljc4MSAyLjI3My0xLjg1Mi41MDQtNC42MjcgMS4yNi04LjMyNiAyLjI3LTMuMzY1IDEuMDEtNS4wNDkgMi4xNDUtNS4wNDkgMy40MDYgMCAuNTkuMjA5IDEuNTk4LjYzMSAzLjAyNy40MiAxLjQzMi42MzMgMi40OC42MzMgMy4xNTYgMCAxLjE3Ni0uNzU4IDIuMjctMi4yNzEgMy4yNzdsLTQuMjkxIDMuMDMxYzEuMDEgMS44NTIgMS42ODIgMi45NDUgMi4wMiAzLjI3OS44NCAxLjAwOCAxLjk3NSAxLjUxNCAzLjQwNiAxLjUxNCAxLjAxIDAgMS45MzQtLjg4MyAyLjc3NS0yLjY0OC44NC0xLjc2OCAyLjE4OC0yLjY1IDQuMDM3LTIuNjUgMi4yNyAwIDQuODM4IDIuMTA0IDcuNjk3IDYuMzExIDEuNTkzIDIuMzYgNC4wNzUgNS45MzMgNy40NCAxMC43Mjd6bS0yOC4wMDctNy4zMTZjMC01LjM4MS0xLjk3OS0xMC4wNTEtNS45MzItMTQuMDA2LTMuOTUzLTMuOTUzLTguNjIxLTUuOTMtMTQuMDA0LTUuOTMtNS40NjkgMC0xMC4xOCAxLjk1Ny0xNC4xMzEgNS44NjktMy45NTMgMy45MS01Ljk3MyA4LjYtNi4wNTUgMTQuMDY2LS4wODYgNS4zODMgMS45MTIgMTAuMDMgNS45OTIgMTMuOTM4IDQuMDggMy45MTIgOC44MTEgNS44NjkgMTQuMTkzIDUuODY5IDUuNzE5IDAgMTAuNDkyLTEuODczIDE0LjMxOC01LjYxNSAzLjgzLTMuNzQgNS43MDEtOC40NyA1LjYxOS0xNC4xOTF6bS0xLjg5MyAwYzAgNS4xMzEtMS43MjUgOS4zODEtNS4xNzQgMTIuNzQtMy40NTEgMy4zNjctNy43NCA1LjA0OS0xMi44NjkgNS4wNDktNC45NjMgMC05LjIxMS0xLjcyMy0xMi43NDItNS4xNzQtMy41MzEtMy40NDUtNS4yOTktNy42NTItNS4yOTktMTIuNjE1IDAtNC44NzcgMS43ODUtOS4wNjQgNS4zNTktMTIuNTUzIDMuNTc4LTMuNDkgNy44MDMtNS4yMzggMTIuNjgyLTUuMjM4IDQuODc3IDAgOS4xMDQgMS43NjYgMTIuNjggNS4zMDEgMy41NzQgMy41MzMgNS4zNjMgNy42OTUgNS4zNjMgMTIuNDl6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{U}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48Y2lyY2xlIGZpbGw9JyNDMUQ3RTknIGN4PSc1MCcgY3k9JzUwJyByPSc1MCcvPjxwYXRoIGQ9J002Ny40ODggODMuNzE5Yy00Ljc4NyA0Ljg3MS0xMC42ODQgNy4zMDctMTcuNjg4IDcuMzA3LTcuODYxIDAtMTQuMDk4LTIuNjktMTguNzExLTguMDczLTQuMzU5LTUuMTI3LTYuNTM3LTExLjY2Mi02LjUzNy0xOS42MDYgMC04LjU0MyAzLjcxNy0xOC4yODYgMTEuMTUtMjkuMjI0IDYuMDY0LTguOTY5IDEzLjE5OS0xNi44MyAyMS40MDItMjMuNTgtMS4xOTcgNS40NjktMS43OTMgOS4zNTUtMS43OTMgMTEuNjYyIDAgNS4yOTkgMS42NjQgMTAuNDY3IDQuOTk2IDE1LjUwOCA0LjEwMiA1Ljk4IDcuMjE5IDEwLjQyNiA5LjM1NyAxMy4zMjggMy4zMzIgNS4wNDMgNC45OTggOS45NTUgNC45OTggMTQuNzM3LjAwMiA3LjA5My0yLjM5MSAxMy4wNzQtNy4xNzQgMTcuOTQxem0tLjEyOS0yNy4zNjJjLTEuMjgxLTIuODYxLTIuNzc3LTQuNzYyLTQuNDg2LTUuNzAzLjI1Ni41MTQuMzg1IDEuMjQuMzg1IDIuMTggMCAxLjc5NS0uNTEyIDQuMzU3LTEuNTM5IDcuNjg5bC0xLjY2NCA1LjEyN2MwIDIuOTkgMS40OTIgNC40ODYgNC40ODQgNC40ODYgMy4xNiAwIDQuNzQyLTIuMDk1IDQuNzQyLTYuMjgxIDAtMi4xMzQtLjY0LTQuNjMyLTEuOTIyLTcuNDk4eicgZmlsbD0nIzBEMEYwRicvPjwvZz48L3N2Zz4K","{B}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxjaXJjbGUgZmlsbD0iI0NBQzVDMCIgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIi8+PHBhdGggZD0iTTkwLjY5NSA0OC4xNGMwIDUuNDYzLTIuMDA4IDkuMTg5LTYuMDIgMTEuMTc1LTEuMTcyLjU4LTQuODUgMS4zNjUtMTEuMDM3IDIuMzYtNC4wMTIuNjYzLTYuMDE4IDIuMTk0LTYuMDE4IDQuNTkydjEwLjA1OGMwIC40MTguMTI1IDEuNjk4LjM3NSAzLjg1bC4zNzcgMy45NzVjMCAxLjI0Mi0uMjkzIDMuMjczLS44NzkgNi4wODUtMS41ODguMzMtMy40MjguNzAyLTUuNTE4IDEuMTItLjY3LTIuNDg2LTEuMDA0LTQuMTgyLTEuMDA0LTUuMDk1IDAtLjQxMS4xMDUtMS4wMzQuMzEzLTEuODYzLjIwNy0uODI2LjMxNi0xLjQ0Ny4zMTYtMS44NjQgMC0uNTc1LS41Mi0yLjE5MS0xLjU1OS00LjgzOWgtMS45NDVjLS4yNTguNDE0LS4zNDQuOTUyLS4yNiAxLjYxMy4zMzQgMS40MDguNDU5IDIuNjA3LjM3NyAzLjZhMjgyLjY1NSAyODIuNjU1IDAgMCAxLTUuODk1IDMuOTc0Yy0uNTg2LS4xNjQtLjc5My0uMjQ3LS42MjktLjI0N3YtOC44MTZjLS4xNjQtLjQxMi0uNTg0LS41NzUtMS4yNTQtLjQ5N2gtMS41MDRsLTEuNTA0IDExLjY3Yy0xLjE3NC4wODMtMi41OTIuMDgzLTQuMjY0IDAtLjU4OC0yLjczLTEuNjMxLTYuNzg1LTMuMTM1LTEyLjE2N2gtMS4wMDRjLS45MjIgMi45LTEuNDIyIDQuNDc0LTEuNTA2IDQuNzIyIDAgLjMzLjEwNC45Ny4zMTQgMS45MjIuMjA3Ljk1My4zMTMgMS41OTMuMzEzIDEuOTI0IDAgLjI0OC0uMDg0Ljg2OC0uMjUgMS44NjJsLS4zNzcgMi45OGEuODYyLjg2MiAwIDAgMS0uNjI3LjI0OGMtMi41MDggMC00LjE4Mi0uNjItNS4wMTYtMS44Ni0uODM2LTEuMjQ0LTEuMTcyLTIuOTgyLTEuMDA0LTUuMjE5bDEuMDA0LTE0Ljg5OGMwLS4yNS4wODItLjU4LjI1LS45OTQuMTY0LS40MTQuMjUtLjcwNC4yNS0uODY4IDAtLjY2NC0uNzExLTEuOTg5LTIuMTMxLTMuOTc1LS4yNDgtLjA4LTEuNTQ5LS4zNzMtMy44ODctLjg3LTEuNDI0LS4zMy00LjIyNS0uOTA5LTguNDAyLTEuNzM5LTUuNzcxLTEuMDczLTguNjU0LTUuNjY4LTguNjU0LTEzLjc4MiAwLTEyLjA4NiA1LjAxOC0yMi4xNDMgMTUuMDUxLTMwLjE3My40MTQgMi4yMzYgMS4xMjcgNS4yMTQgMi4xMjkgOC45NC43NTQuMTY4IDIuMzg1LjU0IDQuODkxIDEuMTE3LjUwNC4xNjcgMy4wNTMgMS4wNzggNy42NTIgMi43MzMtMi4zNDQtMS40MDgtNS4zOTMtMy42ODItOS4xNTYtNi44My0xLjQyMi0xLjY1NS0yLjEzMy00LjQyNi0yLjEzMy04LjMxNiAwLS45MTEgMS41OS0xLjk4OSA0Ljc2OC0zLjIzMiAyLjg0LTEuMTU5IDQuOTc1LTEuODE4IDYuMzk2LTEuOTg2IDQuNTE0LS41NzcgNy45ODQtLjg3IDEwLjQxLS44NyAxMC40NDkgMCAxOC44OTEgMi42NSAyNS4zMjggNy45NDktMi4wODggMi40MDItNS42ODQgNC45NjQtMTAuNzgzIDcuNjk2IDIuMDA4LjA4MyA0LjkzNC0uNyA4Ljc3OS0yLjM2IDMuODQ0LTEuNjUzIDUuNDc1LTIuNDgzIDQuODkxLTIuNDgzLjY2OCAwIDIuMDA4IDEuMzI3IDQuMDE0IDMuOTc1IDEuNTA0IDEuOTg2IDIuNzE1IDMuNzY5IDMuNjM3IDUuMzM3IDIuNjc0IDQuNzIxIDQuNDcxIDkuODEgNS4zOTMgMTUuMjc0IDAgMS45MDYuMDQxIDMuMjcyLjEyNSA0LjA5OHYuOTk0aC4wMDJabS00OC4wMzEgMi4yMzVjMC0zLjU1OC0xLjU2OC02LjkzMi00LjcwMy0xMC4xMjItMy4xMzctMy4xODctNi41MDItNC43NzgtMTAuMDk2LTQuNzc4LTMuMTc4IDAtNS45NzcgMS4zMzUtOC40MDIgNC0yLjQyNiAyLjY2Ni0zLjYzNyA1LjYyNS0zLjYzNyA4Ljg3NCAwIDIuODMgMS4zNzkgNC42NjYgNC4xMzkgNS40OTggMS43NTYuNSA0LjIxOS43OTMgNy4zOTguODc0aDYuODk4YzUuNTk4LjA4MyA4LjQwMy0xLjM2NiA4LjQwMy00LjM0NlptMTMuNjY4IDE1LjR2LTMuODUxYTEyMC45NTMgMTIwLjk1MyAwIDAgMS0xLjc1NC0zLjM1NGMtLjUwMi0xLjY1Ny0xLjQyMi0zLjk3NC0yLjc2LTYuOTU1bC0xLjM4MSAxNC41MjljMCAxLjE2LS4yNSAxLjczOC0uNzUyIDEuNzM4LS4zMzQgMC0uNTg0LS4wODEtLjc1Mi0uMjQ1LS41ODYtOC43NzYtLjg3OS0xMi41ODQtLjg3OS0xMS40Mjd2LTQuMzQ0Yy0uMTY4LS4yNTEtLjM3NS0uMzc1LS42MjUtLjM3NS0yLjg0NCAyLjkwMS00LjI2NCA3LjU3Ni00LjI2NCAxNC4wMzIgMCAzLjU2LjMzIDUuNzUzIDEuMDAyIDYuNTgyLjY3LS4xNjQgMS40MjItLjQ1NSAyLjI1OC0uODY4LjMzNC0uMTY3IDEuMjk1LS4yNSAyLjg4Ny0uMjUgMS41ODQgMCAzLjUxLjQ5NyA1Ljc2NiAxLjQ5LjgzNiAwIDEuMjU0LTIuMjM0IDEuMjU0LTYuNzAzWm0yOC4zNDQtMTcuMzAzYzAtMy4zMzMtMS4yNTQtNi4zMTItMy43NjItOC45MzUtMi41MS0yLjYyMi01LjM5NS0zLjkzNi04LjY1Mi0zLjkzNi0zLjUxMiAwLTYuNzk1IDEuNTkxLTkuODQ2IDQuNzc4LTMuMDUzIDMuMTg3LTQuNTc4IDYuNTE5LTQuNTc4IDkuOTk2IDAgMi45IDEuNDIgNC4zNDYgNC4yNjQgNC4zNDZoMTQuNDIyYzUuNDMzLS4wODEgOC4xNTItMi4xNjUgOC4xNTItNi4yNDlaIiBmaWxsPSIjMEQwRjBGIi8+PC9nPjwvc3ZnPgo=","{R}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48Y2lyY2xlIGZpbGw9JyNFNDk5NzcnIGN4PSc1MCcgY3k9JzUwJyByPSc1MCcvPjxwYXRoIGQ9J005MS45NjUgNjYuNjE3Yy0zLjczNiA4LjkxMi0xMS4xNiAxMy4zNjctMjIuMjc1IDEzLjM2Ny0yLjAzNyAwLTQuMjQ2LjI1NC02LjYyMS43NjItMy41NjQuNzY0LTUuMzQ2IDEuODI4LTUuMzQ2IDMuMTg2IDAgLjQyNC4yOTUuOTEuODkxIDEuNDYzLjU5Mi41NTMgMS4xMDQuODI2IDEuNTI3LjgyNi0yLjEyMyAwLS42OC4wNjQgNC4zMjYuMTkxIDUuMDA4LjEyNyA4LjE0OC4xOTEgOS40MjIuMTkxLTcuMzgzIDQuMzI2LTE5LjczMiA2LjMxOS0zNy4wNDMgNS45ODEtNS42ODgtLjA4NC0xMC41NjYtMi41ODgtMTQuNjM5LTcuNTEtMy45OTItNC42NjktNS45ODQtOS44ODgtNS45ODQtMTUuNjU4IDAtNi4xMDggMi4wNTctMTEuMzA4IDYuMTc2LTE1LjU5NSA0LjExMy00LjI4MiA5LjIyOS02LjQyNyAxNS4zMzgtNi40MjcgMS4zNTcgMCAzLjE2LjI5NyA1LjQxLjg5MSAyLjI0OC41OTQgMy43NTYuODkxIDQuNTE4Ljg5MSAzLjEzOSAwIDcuMDQ1LTEuMjkzIDExLjcxMy0zLjg4MyA0LjY2Ni0yLjU4OCA2Ljg3NS0zLjg4MyA2LjYyMS0zLjg4My0uODUgOC45MTItMy44MiAxNC44OTYtOC45MTQgMTcuOTQ4LTMuNjQ4IDIuMTIzLTUuNDczIDQuMjAxLTUuNDczIDYuMjM2IDAgMS4yNzMuNzY0IDIuMjkzIDIuMjkxIDMuMDU3IDEuMTg4LjU5NSAyLjUwMi44OTIgMy45NDUuODkyIDIuMjA3IDAgNC4zNzEtMS4zNTYgNi40OTQtNC4wNzEgMi4xMTktMi43MTggMy4wNTUtNS4xNzcgMi44MDEtNy4zODYtLjI1NC0yLjU0NS0uMDg0LTUuNjAzLjUxLTkuMTY0LjE2OC0xLjAyLjc4My0yLjI3IDEuODQ0LTMuNzU0IDEuMDYxLTEuNDg2IDIuMDE2LTIuMzk4IDIuODY1LTIuNzM4IDAgLjc2Mi0uMjc1IDIuMDM3LS44MjggMy44MTgtLjU1MyAxLjc4MS0uODI2IDMuMS0uODI2IDMuOTQ3IDAgMS44NjcuNTA4IDMuMzA5IDEuNTI3IDQuMzI2IDEuNTI1LS41OTIgMi44ODMtMi41MDIgNC4wNzQtNS43MjkgMS4wMTYtMi40NTkgMS42MDktNC44MzYgMS43ODEtNy4xMjctMy41NjYtLjE3LTYuOTgyLTEuNzgxLTEwLjI0OC00LjgzOC0zLjI2OC0zLjA1Ny00LjktNi4zNjUtNC45LTkuOTI4IDAtLjU5NC4wODItMS4xODguMjU2LTEuNzgzLjUwOC43NjQgMS4yNzEgMS45NTMgMi4yODkgMy41NjQgMS40NDMgMi4xMjEgMi41NDcgMy4xODIgMy4zMTMgMy4xODIgMS4wMTYgMCAxLjUyNS0xLjA2MSAxLjUyNS0zLjE4MiAwLTIuNzE1LS43MjMtNS4xNzYtMi4xNjQtNy4zODMtMS42MTMtMi42MzEtMy42OTMtMy45NDctNi4yMzgtMy45NDctMS4xODkgMC0yLjk3MS42MzctNS4zNDQgMS45MS0yLjM3OSAxLjI3MS00LjU0MyAxLjkxLTYuNDkyIDEuOTEtLjU5NiAwLTMuMjI5LS43NjYtNy44OTUtMi4yOTMgOC4yMy0xLjM1NSAxMi4zNDgtMi41ODYgMTIuMzQ4LTMuNjkxIDAtMi44ODUtNS42NDUtNC44MzgtMTYuOTMtNS44NTUtMS4xMDUtLjA4NC0zLjE0MS0uMjU0LTYuMTExLS41MS4zMzgtLjQyNCAyLjc1OC0uODkxIDcuMjU4LTEuNCAzLjgxOC0uNDIyIDYuNDkyLS42MzcgOC4wMTgtLjYzNyAyMC4xOTcgMCAzMy4wMTIgOS44MDUgMzguNDQzIDI5LjQwOC45MzQtLjc3MyAxLjQwMi0yLjA2NiAxLjQwMi0zLjg3MSAwLTIuMzI0LS42OC01LjI1LTIuMDM3LTguNzc3LS41MTItMS4zNzUtMS4zMTgtMy40NDEtMi40Mi02LjE5MyA2Ljk1NyA4Ljg2NyAxMC40MzkgMTcuMjcgMTAuNDM5IDI1LjE5OSAwIDQuMTc4LS45NzkgNy45NzMtMi45MyAxMS4zODEtMS4yNyAyLjMwMy0zLjY1IDUuMjQ0LTcuMTI3IDguODI2LTMuNDggMy41OC01Ljg1NyA2LjM1Mi03LjEzMSA4LjMxMyA0LjY2OC0xLjI3MSA3LjcyNS0yLjI0OCA5LjE2OC0yLjkyOCAzLjIyMy0xLjQ0IDYuMTUtMy42MDYgOC43ODMtNi40OTIgMCAxLjEwNi0uNDY3IDIuNzYyLTEuNCA0Ljk2N3ptLTU1LjUwMi01MC4wMjVjMCAxLjUyNS0uODUgMi41MDItMi41NDUgMi45MjZsLTMuMzExLjUxYy0xLjE4OS41OTQtMi45MjggMi45MjgtNS4yMTkgNy0uMjU2LTEuMjcxLS42MzctMy4wNTMtMS4xNDYtNS4zNDYtLjc2NC4wODYtMi4wMzUuNzY0LTMuODE4IDIuMDM3LS43NjQuNTk0LTEuOTk2IDEuNDg0LTMuNjkzIDIuNjcyLjUxMi0zLjA1NSAyLjIwNy02LjE0OCA1LjA5NC05LjI5MyAzLjA1NS0zLjQ3NyA2LjAyNS01LjIxNyA4LjkxLTUuMjE3IDMuODE4IDAgNS43MjggMS41NzIgNS43MjggNC43MTF6bTIyLjE1IDExLjcwOWMwIDEuNDQzLS43ODUgMi42NTQtMi4zNTUgMy42MjktMS41Ny45NzctMy4xMTkgMS40NjUtNC42NDYgMS40NjUtMi4wMzcgMC0zLjg2My0xLjE0Ni01LjQ3My0zLjQzOC0xLjk1NS0yLjgwMS0zLjk0Ny00LjYyNS01Ljk4NC01LjQ3Ny40MjQtLjQyMi45MzQtLjYzNSAxLjUyOS0uNjM1Ljc2NCAwIDIuMDU1LjU5NCAzLjg4MSAxLjc4MSAxLjgyNCAxLjE4OSAyLjk5IDEuNzgzIDMuNTAyIDEuNzgzLjQyNCAwIDEuMTIzLS41OTQgMi4xLTEuNzgzLjk3NS0xLjE4OCAyLjA1Ny0xLjc4MSAzLjI0Ni0xLjc4MSAyLjguMDAxIDQuMiAxLjQ4NyA0LjIgNC40NTZ6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{G}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48cGF0aCBkPSdNMTAwIDQ5Ljk5OGMwIDI3LjYxNS0yMi4zODUgNTAuMDAyLTUwLjAwMiA1MC4wMDItMjcuNjEzIDAtNDkuOTk4LTIyLjM4Ny00OS45OTgtNTAuMDAyIDAtMjcuNjEzIDIyLjM4NS00OS45OTggNDkuOTk4LTQ5Ljk5OCAyNy42MTcgMCA1MC4wMDIgMjIuMzg1IDUwLjAwMiA0OS45OTh6JyBpZD0nU2hhcGUnIGZpbGw9JyNBM0MwOTUnLz48cGF0aCBkPSdNOTMuNzYyIDU2LjIyNWMwIDEuNjY4LS42NDUgMy4xNjQtMS45MzYgNC40OTgtMS4yODkgMS4zMzItMi43NyAxLjk5OC00LjQzNiAxLjk5OC0yLjY2MiAwLTQuNjIzLTEuMjUtNS44NjktMy43NDhsLTUuODcxLS4yNWMtMS4yNTIgMC0zLjcwOS41NDMtNy4zNzEgMS42MjUtMy45MTQgMS4wODItNi4xNjQgMS45NTctNi43NDYgMi42MjMtLjkxNi45OTgtMS42NjQgMy4zMzItMi4yNDggNi45OTYtLjUwMiAyLjk5OC0uNzQ4IDUuMjA1LS43NDggNi42MjEgMCAyLjI0Ni4zNTIgMy44OTMgMS4wNjEgNC45MzQuNzA5IDEuMDQxIDIuMTY2IDEuOTE2IDQuMzcxIDIuNjIzIDIuMjA1LjcwNyAzLjU2MSAxLjEwNCA0LjA2MSAxLjE4Ny4zMzIgMCAuODczLS4wNDEgMS42MjUtLjEyNWgxLjQ5OGMxLjA4IDAgMi4yMDUuMTcgMy4zNzMuNSAxLjY2Ni41IDIuMzc1IDEuMTY2IDIuMTI1IDItMS4xNjgtLjE2Ni0zLjIwNy4wODQtNi4xMjEuNzVsMy40OTYgMS43NDhjMCAxLTEuNDE2IDEuNDk4LTQuMjQ2IDEuNDk4LS43NTIgMC0xLjc3MS0uMTY2LTMuMDYzLS40OTgtMS4yOTEtLjMzNi0yLjE0NS0uNS0yLjU1OS0uNWgtMS42MjVjLS4wODIuODMyLS4zMzQgMi4wOC0uNzUgMy43NDYtMS40MTgtLjA4NC0zLjA4LS45MTgtNC45OTYtMi40OTgtMS45MTgtMS41OC0zLjEyMy0yLjM3My0zLjYyMS0yLjM3My0uNTAyIDAtMS4yMTEuNzkzLTIuMTI1IDIuMzczLS45MTggMS41OC0xLjM3NSAyLjY2NC0xLjM3NSAzLjI0OC0xLjA4Mi0uNTg0LTEuOTk2LTEuNjY4LTIuNzUtMy4yNDgtLjMzMi0xLjA4NC0uNzA3LTIuMTY2LTEuMTIxLTMuMjQ4LS44MzIuMDg0LTIuMzc1IDEuODM0LTQuNjIxIDUuMjQ4aC0uNjI3Yy0uMTY2LS4yNTItLjc5NS0yLTEuODczLTUuMjQ4LTIuNTgyLS44MzItNC45OTYtMS4yNDgtNy4yNDYtMS4yNDgtMS4wODIgMC0yLjc0OC4yNS00Ljk5Ni43NDhsLTMuNDk2LS4yNDhjLjQ5OC0uNSAxLjk1NS0xLjQ1NyA0LjM3MS0yLjg3MyAyLjgzLTEuNjY2IDQuOTk2LTIuNSA2LjQ5Ni0yLjUuMjQ2IDAgLjU3OC4wNDMgMSAuMTI1LjQxNC4wODYuNzUuMTI1IDEgLjEyNS41NzggMCAxLjUxOC0uMzEyIDIuODA5LS45MzggMS4yOTEtLjYyMyAyLjAzOS0xLjE4NiAyLjI0Ni0xLjY4NC4yMTEtLjUwNC4zMTYtMS43OTMuMzE2LTMuODc1IDAtNC43NDYtMS4yNS04LjI4NS0zLjc1LTEwLjYxNy0yLjE2OC0yLjA4Mi01Ljc0Ni0zLjU4LTEwLjc0NC00LjQ5OC0xLjMzMiA0Ljc0Ni01LjA4IDcuMTIzLTExLjI0IDcuMTIzLTIgMC0zLjk5OC0xLjIwNy01Ljk5Ni0zLjYyMy0xLjk5Ni0yLjQxNi0yLjk5Ni00LjYyMy0yLjk5Ni02LjYyMSAwLTMuMDgyIDEuMjg3LTUuNjIxIDMuODY5LTcuNjIzLTIuMDgtMi4xNjItMy4xMjEtNC4zNjktMy4xMjEtNi42MTcgMC0yLjA4NC42NDMtMy45MTQgMS45MzYtNS41IDEuMjkxLTEuNTc4IDIuOTc3LTIuNDk2IDUuMDU5LTIuNzQ4LS4xNjYtMi42NjIuNzA3LTQuNDk2IDIuNjIzLTUuNDk2LS45MTYtLjkxNC0xLjM3My0yLjUzNy0xLjM3My00Ljg2OSAwLTIuNzQ4LjkxNi01LjAzOSAyLjc0OC02Ljg3MSAxLjgzLTEuODMyIDQuMTIxLTIuNzUgNi44NjktMi43NSAzIDAgNS40NTcgMS4wNDUgNy4zNzEgMy4xMjUgMi40MTYtOC4yNDQgNy42MjEtMTIuMzY3IDE1LjYxMy0xMi4zNjcgNC4xNjQgMCA3LjgyOCAxLjY2NiAxMC45OTQgNC45OTggMS4xNjYgMS4yNDggMS43NDggMS45MTYgMS43NDggMS45OTYtMSAwLS40OTgtLjE4OCAxLjUtLjU2MSAxLjk5Ni0uMzc1IDMuNDUzLS41NjMgNC4zNzMtLjU2MyAzLjI0NiAwIDYuMTE5IDEuMjA3IDguNjE5IDMuNjIzIDIuMTY0IDIuMTY2IDMuNjY0IDQuOTEyIDQuNDk4IDguMjQ0LjU4LjA4NCAxLjQ5OC4zMzIgMi43NDguNzQ4IDEuODMuOTIgMi43NDggMi40OTggMi43NDggNC43NDggMCAuNDE4LS4zMzYgMS4yMDktMSAyLjM3MyA1LjMyOCAyLjk5OCA3Ljk5NCA3LjE2MiA3Ljk5NCAxMi40OTIgMCAxLjQ5OC0uNTgyIDMuNTg0LTEuNzQ4IDYuMjQ3IDIuMTY2IDEuMjQ3IDMuMjQ2IDMuMDgxIDMuMjQ2IDUuNDk1em0tNTEuNDY3IDUuNDk2di0xLjYyM2MwLTEuOTE0LS45MzYtMy42NjQtMi44MDktNS4yNDYtMS44NzUtMS41ODItMy43Ny0yLjM3My01LjY4NC0yLjM3My0yLjMzNCAwLTQuNDk2LjU0MS02LjQ5NiAxLjYyMSA0LjQxMy0uMjQ4IDkuNDExIDIuMjkzIDE0Ljk4OSA3LjYyMXptLTIuMjQ2LTE1LjQ4OWMtMS4yNS0xLjQxOC0yLjMzMi0yLjg3NS0zLjI1LTQuMzczLTMuNDk4LjkxNi01LjI0NiAxLjk1Ny01LjI0NiAzLjEyMSAxLS4wOCAyLjQ1Ny4xMDUgNC4zNzEuNTY0IDEuOTE0LjQ1OSAzLjI5MS42ODggNC4xMjUuNjg4em03LjYyMS0zLjg3M3YtNS40OTZjLTItLjMzMi0zLjIxMS0uNS0zLjYyMy0uNXYxLjg3M2wzLjYyMyA0LjEyM3ptMTYuMjM4LTMuNDk4Yy0xLS40MTYtMi44NzUtMS4yNS01LjYyMS0yLjQ5OHYxMC43NDJjMy45MTItMi4yNSA1Ljc4NS00Ljk5OCA1LjYyMS04LjI0NHptNi44NjcgMTQuNzQxbC0yLjc0Ni0zLjM3M2MtMS42NjQgMS4xNjctMy4zNTIgMi4zNTQtNS4wNjEgMy41NjEtMS43MDkgMS4yMDctMy4xODYgMi41NjMtNC40MzIgNC4wNiAzLjc0Ny0yLjAwMiA3LjgyOS0zLjQxNCAxMi4yMzktNC4yNDh6JyBmaWxsPScjMEQwRjBGJy8+PC9nPjwvc3ZnPgo=","{C}":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48ZyBmaWxsPSdub25lJz48cGF0aCBkPSdNMTAwIDUwYzAgMjcuNjA5LTIyLjM4MiA1MC01MCA1MHMtNTAtMjIuMzkxLTUwLTUwIDIyLjM4Mi01MCA1MC01MCA1MCAyMi4zOTEgNTAgNTB6JyBpZD0nU2hhcGUnIGZpbGw9JyNDQUM1QzAnLz48cGF0aCBkPSdNNDkuNjg3IDEyLjAyNmMyLjQ3NSA0Ljk2OCA1LjUwNCA5Ljc5MyA5LjA5NiAxNC40NzUgMS41MjggMS45NjYgMy4yNzkgNC4wMjEgNS4yNTQgNi4xNDcgMS45NDggMi4xMjYgNC4xMSA0LjI1MyA2LjQ1MSA2LjM0NCAyLjM1OSAyLjA5MSA0Ljk0MSA0LjA3NCA3Ljc1NiA1Ljk1MSAyLjgxNSAxLjg3NiA1Ljg0MyAzLjU5MiA5LjA5NiA1LjEyOS00Ljc4IDIuNTU2LTkuNTE2IDUuNjY1LTE0LjIyNSA5LjM0Ni0xLjk1NiAxLjUzNy00LjAwMyAzLjMwNi02LjE0NyA1LjMyNS0yLjEyNiAyLjAwMi00LjIxNyA0LjItNi4yNjMgNi41NzYtMi4wNDYgMi40MTItNC4wMTIgNS4wMDQtNS44OTcgNy44MjctMS44NzcgMi44MDYtMy41ODMgNS43OS01LjEyIDguOTUzLTIuMzk1LTQuNy01LjM3OS05LjM0Ni04Ljk2Mi0xMy45NTYtMy4wNzQtMy45MzEtNi45Ni04LjA1OS0xMS42Ni0xMi40Mi00LjY5MS00LjM2LTEwLjM3My04LjIzOC0xNy4wMy0xMS42NTEgNC43ODktMi40ODQgOS41MjUtNS41NTcgMTQuMjI0LTkuMjIxIDQuMDEyLTMuMTYzIDguMTQ5LTcuMTEyIDEyLjQxMS0xMS44NDggNC4yNy00LjczNiA3LjkzMy0xMC4zODMgMTEuMDE2LTE2Ljk3N3ptLTUuNTA0IDUyLjg5NWMyLjIyNSAyLjgyNCA0LjA1NiA1LjY4MyA1LjUwNCA4LjU3OCAxLjg4NS00LjAyMSA0LjE0Ni03LjQ3IDYuNzgxLTEwLjM2NSAyLjY0NS0yLjkxMyA1LjIxOC01LjM0MyA3LjY5My03LjMwOSAyLjgxNC0yLjE5OCA1Ljc1NC00LjEyOCA4LjgzNy01Ljc3Mi00LjEwMS0xLjg1OS03LjU4Ni00LjEyOC0xMC40MzYtNi43NzMtMi44NjgtMi42NDUtNS4yODEtNS4yLTcuMjM3LTcuNjg0LTIuMjI1LTIuODA1LTQuMTEtNS43OS01LjYzOC04Ljk1My0xLjg3NiA0LjA5Mi00LjEyOCA3LjU5NS02LjcxOSAxMC40OS0yLjYwOSAyLjkxMy01LjE0NiA1LjMyNS03LjYyMiA3LjMwOS0yLjgyMyAyLjIxNi01Ljc2MyA0LjA3NC04LjgzNyA1LjYyOSA0LjEwMSAyLjEyNyA3LjU5NSA0LjUyMSAxMC40OTkgNy4xNjYgMi45MDQgMi42NDUgNS4yOTkgNS4yMTggNy4xNzUgNy42ODR6JyBmaWxsPScjMDAwJy8+PC9nPjwvc3ZnPgo="}</script>
+<script type="application/json" id="set-codes">{"marvel: darkhold destiny tokens":"TMDD","darkhold destiny commander":"MDC","marvel: darkhold destiny":"MDD","nauctis: the sunken realm tokens":"TNAU","nauctis: the sunken realm":"NAU","wizards play network 2027":"PW27","magicfest 2027":"PF27","stardates":"SDS","star trek":"TRK","star trek commander":"TRC","star trek tokens":"TTRK","mystery booster commander edition":"MBC","alchemy: reality fracture":"YFRA","reality fracture commander tokens":"TFRC","reality fracture tokens":"TFRA","reality fracture commander":"FRC","reality fracture promos":"PFRA","foundations commander tokens":"TFDC","reality fracture":"FRA","reality fracture art series":"AFRA","the zeta set":"SLZ","the hobbit art series":"AHOB","the hobbit tokens":"THOB","the hobbit":"HOB","the hobbit eternal art series":"AHOC","the hobbit eternal":"HOC","marvel super heroes art series":"AMSH","marvel super heroes jumpstart front cards":"FMSC","marvel super heroes tokens":"TMSH","marvel super heroes":"MSH","marvel super heroes commander":"MSC","marvel super heroes commander tokens":"TMSC","alchemy: secrets of strixhaven":"YSOS","secrets of strixhaven promos":"PSOS","secrets of strixhaven commander":"SOC","secrets of strixhaven art series":"ASOS","secrets of strixhaven tokens":"TSOS","secrets of strixhaven":"SOS","secrets of strixhaven mystical archive":"SOA","secrets of strixhaven commander tokens":"TSOC","teenage mutant ninja turtles eternal tokens":"TTMC","teenage mutant ninja turtles eternal":"TMC","teenage mutant ninja turtles source material":"PZA","teenage mutant ninja turtles eternal front cards":"FTMC","teenage mutant ninja turtles":"TMT","teenage mutant ninja turtles tokens":"TTMT","teenage mutant ninja turtles art series":"ATMT","year of the horse 2026":"PL26","alchemy: lorwyn eclipsed":"YECL","lorwyn eclipsed promos":"PECL","lorwyn eclipsed commander tokens":"TECC","lorwyn eclipsed commander":"ECC","lorwyn eclipsed art series":"AECL","lorwyn eclipsed tokens":"TECL","lorwyn eclipsed":"ECL","magicfest 2026":"PF26","wizards play network 2026":"PW26","final fantasy scene box":"AFIC","avatar: the last airbender promos":"PTLA","avatar: the last airbender art series":"ATLA","avatar: the last airbender beginner box front cards":"FTLA","avatar: the last airbender eternal":"TLE","avatar: the last airbender eternal tokens":"TTLE","avatar: the last airbender eternal art series":"ATLE","avatar: the last airbender jumpstart front cards":"JTLA","avatar: the last airbender tokens":"TTLA","avatar: the last airbender":"TLA","marvel legends series inserts":"LMAR","marvel's spider-man promos":"PSPM","marvel's spider-man tokens":"TSPM","marvel's spider-man art series":"ASPM","marvel's spider-man":"SPM","marvel universe":"MAR","marvel's spider-man eternal":"SPE","arena anthology 4":"AA4","through the omenpaths bonus sheet":"OMB","arena anthology 3":"AA3","through the omenpaths":"OM1","2023 heroes of the realm":"PH23","arena anthology 2":"AA2","alchemy: edge of eternities":"YEOE","arena anthology 1":"AA1","edge of eternities art series":"AEOE","edge of eternities promos":"PEOE","edge of eternities: stellar sights":"EOS","edge of eternities commander tokens":"TEOC","edge of eternities commander":"EOC","edge of eternities":"EOE","the big score promos":"PBIG","edge of eternities tokens":"TEOE","final fantasy regional promos":"RFIN","final fantasy tokens":"TFIN","final fantasy art series":"AFIN","final fantasy promos":"PFIN","final fantasy commander":"FIC","final fantasy commander tokens":"TFIC","final fantasy: through the ages":"FCA","final fantasy":"FIN","fin asia wpn promo tokens":"WFIN","fin standard showdown":"PSS5","pioneer anthology 1":"PA1","alchemy: tarkir":"YTDM","tarkir: dragonstorm promos":"PTDM","tarkir: dragonstorm art series":"ATDM","tarkir: dragonstorm commander tokens":"TTDC","tarkir: dragonstorm tokens":"TTDM","tarkir: dragonstorm commander":"TDC","tarkir: dragonstorm":"TDM","love your lgs 2025":"PLG25","alchemy: aetherdrift":"YDFT","secret lair showcase planes":"PSSC","aetherdrift art series":"ADFT","aetherdrift promos":"PDFT","aetherdrift commander tokens":"TDRC","year of the snake 2025":"PL25","aetherdrift tokens":"TDFT","aetherdrift":"DFT","aetherdrift commander":"DRC","japan standard cup":"PJSC","innistrad remastered art series":"AINR","innistrad remastered tokens":"TINR","innistrad remastered":"INR","spotlight series":"PSPL","wizards play network 2025":"PW25","magicfest 2025":"PF25","pioneer masters":"PIO","foundations art series":"AFDN","foundations promos":"PFDN","foundations tokens":"TFDN","foundations commander":"FDC","foundations":"FDN","foundations front cards":"FFDN","foundations jumpstart":"J25","foundations jumpstart front cards":"FJ25","tales of middle-earth deluxe commander kit":"PLTC","alchemy: duskmourn":"YDSK","duskmourn: house of horror":"DSK","duskmourn: house of horror commander":"DSC","duskmourn: house of horror tokens":"TDSK","duskmourn: house of horror promos":"PDSK","duskmourn: house of horror art series":"ADSK","duskmourn commander tokens":"TDSC","alchemy: bloomburrow":"YBLB","love your lgs 2024":"PLG24","bloomburrow promos":"PBLB","bloomburrow tokens":"TBLB","bloomburrow commander tokens":"TBLC","bloomburrow art series":"ABLB","cowboy bebop":"PCBB","mystery booster 2":"MB2","bloomburrow":"BLB","bloomburrow commander":"BLC","assassin's creed minigames":"MACR","assassin's creed":"ACR","assassin's creed art series":"AACR","assassin's creed tokens":"TACR","modern horizons 3 promos":"PMH3","modern horizons 3 substitute cards":"SMH3","modern horizons 3 commander":"M3C","modern horizons 3":"MH3","modern horizons 2 timeshifts":"H2R","modern horizons 3 commander tokens":"TM3C","modern horizons 3 tokens":"TMH3","modern horizons 3 art series":"AMH3","alchemy: outlaws of thunder junction":"YOTJ","outlaws of thunder junction art series":"AOTJ","outlaws of thunder junction tokens":"TOTJ","outlaws of thunder junction promos":"POTJ","breaking news":"OTP","outlaws of thunder junction":"OTJ","outlaws of thunder junction commander":"OTC","breaking news tokens":"TOTP","the big score":"BIG","the big score tokens":"TBIG","outlaws of thunder junction commander tokens":"TOTC","fallout":"PIP","fallout tokens":"TPIP","alchemy: murders at karlov manor":"YMKM","black lotus unknown planechase":"PUNK","ravnica: clue edition":"CLU","ravnica: clue edition front cards":"FCLU","mkm standard showdown":"PSS4","murders at karlov manor promos":"PMKM","murders at karlov manor commander tokens":"TMKC","murders at karlov manor tokens":"TMKM","murders at karlov manor art series":"AMKM","murders at karlov manor":"MKM","murders at karlov manor commander":"MKC","mkm japanese promo tokens":"WMKM","year of the dragon 2024":"PL24","ravnica remastered tokens":"TRVR","ravnica remastered":"RVR","magicfest 2024":"PF24","wizards play network 2024":"PW24","alchemy: ixalan":"YLCI","special guests":"SPG","the lost caverns of ixalan promos":"PLCI","the lost caverns of ixalan art series":"ALCI","march of the machine: the aftermath promos":"PMAT","the lost caverns of ixalan commander tokens":"TLCC","jurassic world collection":"REX","the lost caverns of ixalan commander":"LCC","the lost caverns of ixalan tokens":"TLCI","the lost caverns of ixalan":"LCI","jurassic world collection tokens":"TREX","the lost caverns of ixalan substitute cards":"SLCI","tales of middle-earth scene box":"ALTC","doctor who tokens":"TWHO","doctor who":"WHO","alchemy: wilds of eldraine":"YWOE","wilds of eldraine promos":"PWOE","wilds of eldraine art series":"AWOE","wilds of eldraine tokens":"TWOE","wilds of eldraine commander tokens":"TWOC","wilds of eldraine: enchanting tales":"WOT","woe japanese promo tokens":"WWOE","wilds of eldraine commander":"WOC","time spiral remastered promos":"PTSR","magic × duel masters promos":"PMDA","wilds of eldraine":"WOE","30th anniversary celebration tokyo":"P30T","commander masters tokens":"TCMM","commander masters art series":"ACMM","commander masters":"CMM","2022 heroes of the realm":"PH22","historic anthology 7":"HA7","explorer anthology 3":"EA3","magicfest 2023":"PF23","tales of middle-earth promos":"PLTR","tales of middle-earth commander":"LTC","the lord of the rings: tales of middle-earth minigames":"MLTR","the lord of the rings: tales of middle-earth":"LTR","tales of middle-earth art series":"ALTR","tales of middle-earth tokens":"TLTR","tales of middle-earth commander tokens":"TLTC","tales of middle-earth front cards":"FLTR","march of the machine: the aftermath":"MAT","march of the machine jumpstart front cards":"FMOM","march of the machine commander tokens":"TMOC","march of the machine":"MOM","multiverse legends":"MUL","march of the machine tokens":"TMOM","march of the machine promos":"PMOM","multiverse legends tokens":"TMUL","march of the machine art series":"AMOM","march of the machine commander":"MOC","mom japanese promo tokens":"WMOM","march of the machine substitute cards":"SMOM","shadows of the past":"SIS","shadows over innistrad remastered":"SIR","alchemy: phyrexia":"YONE","secret lair promo":"SLP","unknown event":"UNK","year of the rabbit 2023":"PL23","phyrexia: all will be one":"ONE","phyrexia: all will be one promos":"PONE","phyrexia: all will be one minigames":"MONE","phyrexia: all will be one art series":"AONE","phyrexia: all will be one commander":"ONC","phyrexia: all will be one jumpstart front cards":"FONE","phyrexia: all will be one commander tokens":"TONC","phyrexia: all will be one tokens":"TONE","one japanese promo tokens":"WONE","dominaria remastered tokens":"TDMR","dominaria remastered":"DMR","regional championship qualifiers 2023":"PR23","judge gift cards 2023":"P23","wizards play network 2023":"PW23","alchemy: the brothers' war":"YBRO","explorer anthology 2":"EA2","starter commander deck tokens":"TSCD","starter commander decks":"SCD","jumpstart 2022 front cards":"FJ22","jumpstart 2022":"J22","30th anniversary edition":"30A","30th anniversary tokens":"T30A","eternal weekend":"PEWK","the brothers' war commander":"BRC","the brothers' war retro artifacts":"BRR","the brothers' war promos":"PBRO","transformers tokens":"TBOT","the brothers' war southeast asia tokens":"PTBRO","transformers":"BOT","the brothers' war":"BRO","the brothers' war minigames":"MBRO","the brothers' war tokens":"TBRO","the brothers' war jumpstart front cards":"FBRO","the brothers' war commander tokens":"TBRC","the brothers' war substitute cards":"SBRO","the brothers' war art series":"ABRO","secret lair countdown":"SLC","game night: free-for-all tokens":"TGN3","game night: free-for-all":"GN3","the list (unfinity foil edition)":"ULST","unfinity":"UNF","unfinity sticker sheets":"SUNF","unfinity tokens":"TUNF","warhammer 40,000 tokens":"T40K","warhammer 40,000 commander":"40K","alchemy: dominaria":"YDMU","regional championship qualifiers 2022":"PRCQ","30th anniversary history promos":"P30H","dominaria united promos":"PDMU","dominaria united southeast asia tokens":"PTDMU","dominaria united":"DMU","dominaria united art series":"ADMU","dominaria united tokens":"TDMU","dominaria united jumpstart front cards":"FDMU","dominaria united minigames":"MDMU","dmu japanese promo tokens":"WDMU","dominaria united commander":"DMC","dominaria united commander tokens":"TDMC","30th anniversary play promos":"P30A","30th anniversary misc promos":"P30M","summer vacation promos 2022":"PSVC","2021 heroes of the realm":"PH21","historic anthology 6":"HA6","explorer anthology 1":"EA1","store championships":"SCH","double masters 2022 tokens":"T2X2","double masters 2022":"2X2","alchemy horizons: baldur's gate":"HBG","love your lgs 2022":"PLG22","battle for baldur's gate promos":"PCLB","commander legends: battle for baldur's gate minigames":"MCLB","battle for baldur's gate oversized cards":"OCLB","battle for baldur's gate tokens":"TCLB","commander legends: battle for baldur's gate":"CLB","battle for baldur's gate art series":"ACLB","alchemy: new capenna":"YSNC","streets of new capenna southeast asia tokens":"PTSNC","new capenna commander promos":"PNCC","streets of new capenna tokens":"TSNC","streets of new capenna":"SNC","new capenna commander":"NCC","new capenna commander tokens":"TNCC","streets of new capenna promos":"PSNC","streets of new capenna minigames":"MSNC","new capenna art series":"ASNC","game day promos":"GDY","challenger decks 2022":"Q07","alchemy: kamigawa":"YNEO","wizards play network 2022":"PW22","universes within":"SLX","year of the tiger 2022":"PL22","kamigawa: neon dynasty promos":"PNEO","kamigawa: neon dynasty minigames":"MNEO","kamigawa: neon dynasty substitute cards":"SNEO","kamigawa: neon dynasty tokens":"TNEO","kamigawa: neon dynasty":"NEO","neon dynasty commander tokens":"TNEC","neon dynasty commander":"NEC","neon dynasty art series":"ANEO","commander collection: black":"CC2","innistrad: double feature":"DBL","judge gift cards 2022":"P22","alchemy: innistrad":"YMID","innistrad: crimson vow promos":"PVOW","innistrad: crimson vow tokens":"TVOW","crimson vow commander tokens":"TVOC","crimson vow commander display commanders":"OVOC","innistrad: crimson vow minigames":"MVOW","innistrad: crimson vow substitute cards":"SVOW","crimson vow commander":"VOC","crimson vow art series":"AVOW","innistrad: crimson vow":"VOW","pioneer challenger decks 2021":"Q06","innistrad: midnight hunt substitute cards":"SMID","midnight hunt art series":"AMID","midnight hunt commander tokens":"TMIC","innistrad: midnight hunt promos":"PMID","midnight hunt commander display commanders":"OMIC","innistrad: midnight hunt tokens":"TMID","midnight hunt commander":"MIC","innistrad: midnight hunt":"MID","innistrad: midnight hunt minigames":"MMID","jumpstart: historic horizons":"J21","mystery booster playtest cards 2021":"CMB2","2020 heroes of the realm":"PH20","adventures in the forgotten realms promos":"PAFR","forgotten realms commander display commanders":"OAFC","forgotten realms oversized cards":"OAFR","forgotten realms commander":"AFC","adventures in the forgotten realms art series":"AAFR","forgotten realms commander tokens":"TAFC","adventures in the forgotten realms tokens":"TAFR","adventures in the forgotten realms minigames":"MAFR","adventures in the forgotten realms":"AFR","love your lgs 2021":"PLG21","modern horizons 2 tokens":"TMH2","modern horizons 2 promos":"PMH2","modern horizons 2 art series":"AMH2","modern horizons 2 minigames":"MMH2","modern horizons 1 timeshifts":"H1R","wizards play network 2021":"PW21","modern horizons 2":"MH2","historic anthology 5":"HA5","strixhaven: school of mages promos":"PSTX","strixhaven: school of mages tokens":"TSTX","commander 2021 tokens":"TC21","strixhaven: school of mages substitute cards":"SSTX","strixhaven: school of mages minigames":"MSTX","commander 2021 display commanders":"OC21","strixhaven mystical archive":"STA","strixhaven art series":"ASTX","commander 2021":"C21","strixhaven: school of mages":"STX","time spiral remastered":"TSR","time spiral remastered tokens":"TTSR","historic anthology 4":"HA4","kaldheim promos":"PKHM","kaldheim minigames":"MKHM","kaldheim substitute cards":"SKHM","kaldheim commander":"KHC","kaldheim":"KHM","kaldheim commander tokens":"TKHC","kaldheim art series":"AKHM","kaldheim tokens":"TKHM","year of the ox 2021":"PL21","judge gift cards 2021":"PJ21","commander collection: green":"CC1","commander legends promos":"PCMR","commander legends":"CMR","commander legends tokens":"TCMR","kaladesh remastered":"KLR","the list":"PLST","zendikar rising promos":"PZNR","zendikar rising commander tokens":"TZNC","zendikar rising art series":"AZNR","zendikar rising":"ZNR","zendikar rising substitute cards":"SZNR","zendikar rising expeditions":"ZNE","zendikar rising tokens":"TZNR","zendikar rising minigames":"MZNR","zendikar rising commander":"ZNC","arena beginner set":"ANB","amonkhet remastered":"AKR","double masters":"2XM","double masters tokens":"T2XM","2019 heroes of the realm":"PH19","jumpstart arena exclusives":"AJMP","jumpstart":"JMP","core set 2021 promos":"PM21","core set 2021 tokens":"TM21","core set 2021":"M21","signature spellbook: chandra":"SS3","jumpstart front cards":"FJMP","secret lair: ultimate edition":"SLU","historic anthology 3":"HA3","love your lgs 2020":"PLG20","ikoria: lair of behemoths promos":"PIKO","ikoria: lair of behemoths tokens":"TIKO","ikoria: lair of behemoths":"IKO","commander 2020 oversized":"OC20","commander 2020 tokens":"TC20","commander 2020":"C20","historic anthology 2":"HA2","unsanctioned tokens":"TUND","unsanctioned":"UND","theros beyond death promos":"PTHB","theros beyond death tokens":"TTHB","theros beyond death":"THB","magicfest 2020":"PF20","judge gift cards 2020":"J20","secret lair drop":"SLD","historic anthology 1":"HA1","game night 2019 tokens":"TGN2","game night 2019":"GN2","mystery booster playtest cards 2019":"CMB1","ponies: the galloping":"PTG","throne of eldraine promos":"PELD","throne of eldraine tokens":"TELD","throne of eldraine":"ELD","planeswalker championship promos":"PWCS","commander 2019":"C19","commander 2019 oversized":"OC19","commander 2019 tokens":"TC19","2018 heroes of the realm":"PH18","san diego comic-con 2019":"PS19","core set 2020 tokens":"TM20","core set 2020 promos":"PM20","m20 promo packs":"PPP1","core set 2020":"M20","signature spellbook: gideon":"SS2","modern horizons promos":"PMH1","modern horizons":"MH1","modern horizons art series":"AMH1","modern horizons tokens":"TMH1","war of the spark promos":"PWAR","war of the spark tokens":"TWAR","war of the spark":"WAR","judge gift cards 2019":"J19","rna ravnica weekend":"PRW2","rna guild kit":"GK2","rna guild kit tokens":"TGK2","ravnica allegiance promos":"PRNA","ravnica allegiance":"RNA","ravnica allegiance tokens":"TRNA","magicfest 2019":"PF19","ultimate box topper":"PUMA","ultimate masters tokens":"TUMA","ultimate masters":"UMA","m19 gift pack":"G18","game night":"GNT","grn ravnica weekend":"PRWK","grn guild kit tokens":"TGK1","grn guild kit":"GK1","guilds of ravnica promos":"PGRN","guilds of ravnica tokens":"TGRN","guilds of ravnica":"GRN","mythic edition tokens":"TMED","mythic edition":"MED","commander 2018":"C18","commander 2018 oversized":"OC18","commander 2018 tokens":"TC18","2017 heroes of the realm":"PH17","san diego comic-con 2018":"PS18","arena new player experience extras":"XANA","arena new player experience":"ANA","mtg arena promos":"PANA","arena new player experience cards":"OANA","core set 2019 promos":"PM19","core set 2019":"M19","core set 2019 tokens":"TM19","m19 standard showdown":"PSS3","global series jiang yanggu & mu yanling":"GS1","signature spellbook: jace":"SS1","battlebond promos":"PBBD","battlebond tokens":"TBBD","battlebond":"BBD","commander anthology volume ii":"CM2","commander anthology volume ii tokens":"TCM2","dominaria promos":"PDOM","dominaria tokens":"TDOM","dominaria":"DOM","duel decks: elves vs. inventors":"DDU","duel decks: elves vs. inventors tokens":"TDDU","masters 25":"A25","masters 25 tokens":"TA25","lunar new year 2018":"PLNY","nationals promos":"PNAT","rivals of ixalan promos":"PRIX","rivals of ixalan tokens":"TRIX","rivals of ixalan":"RIX","judge gift cards 2018":"J18","friday night magic 2018":"F18","unstable promos":"PUST","unstable tokens":"TUST","unstable":"UST","iconic masters tokens":"TIMA","xln treasure chest":"PXTC","from the vault: transform":"V17","explorers of ixalan":"E02","iconic masters":"IMA","duel decks: merfolk vs. goblins":"DDT","duel decks: merfolk vs. goblins tokens":"TDDT","2017 gift pack":"G17","ixalan promos":"PXLN","ixalan":"XLN","ixalan tokens":"TXLN","xln standard showdown":"PSS2","hascon 2017":"H17","2016 heroes of the realm":"PHTR","archenemy: nicol bolas tokens":"TE01","commander 2017 oversized":"OC17","commander 2017 tokens":"TC17","commander 2017":"C17","san diego comic-con 2017":"PS17","hour of devastation promos":"PHOU","hour of devastation":"HOU","hour of devastation tokens":"THOU","archenemy: nicol bolas schemes":"OE01","archenemy: nicol bolas":"E01","commander anthology tokens":"TCMA","commander anthology":"CMA","amonkhet promos":"PAKH","amonkhet tokens":"TAKH","amonkhet invocations":"MP2","amonkhet":"AKH","welcome deck 2017":"W17","duel decks: mind vs. might tokens":"TDDS","duel decks: mind vs. might":"DDS","modern masters 2017":"MM3","modern masters 2017 tokens":"TMM3","aether revolt promos":"PAER","aether revolt tokens":"TAER","aether revolt":"AER","league tokens 2017":"L17","friday night magic 2017":"F17","judge gift cards 2017":"J17","planechase anthology tokens":"TPCA","planechase anthology":"PCA","planechase anthology planes":"OPCA","treasure chest":"PZ2","commander 2016 oversized":"OC16","commander 2016":"C16","commander 2016 tokens":"TC16","san diego comic-con 2016":"PS16","kaladesh promos":"PKLD","kaladesh":"KLD","kaladesh tokens":"TKLD","kaladesh inventions":"MPS","duel decks: nissa vs. ob nixilis":"DDR","conspiracy: take the crown":"CN2","conspiracy: take the crown tokens":"TCN2","from the vault: lore":"V16","eldritch moon promos":"PEMN","eldritch moon":"EMN","eldritch moon tokens":"TEMN","eternal masters":"EMA","eternal masters tokens":"TEMA","shadows over innistrad promos":"PSOI","shadows over innistrad tokens":"TSOI","shadows over innistrad":"SOI","welcome deck 2016":"W16","duel decks: blessed vs. cursed":"DDQ","oath of the gatewatch tokens":"TOGW","oath of the gatewatch promos":"POGW","oath of the gatewatch":"OGW","league tokens 2016":"L16","friday night magic 2016":"F16","judge gift cards 2016":"J16","legendary cube prize pack":"PZ1","commander 2015 oversized":"OC15","commander 2015":"C15","commander 2015 tokens":"TC15","battle for zendikar tokens":"TBFZ","battle for zendikar promos":"PBFZ","bfz standard series":"PSS1","zendikar expeditions":"EXP","battle for zendikar":"BFZ","duel decks: zendikar vs. eldrazi":"DDP","from the vault: angels":"V15","magic origins clash pack":"CP3","magic origins promos":"PORI","magic origins tokens":"TORI","magic origins":"ORI","san diego comic-con 2015":"PS15","modern masters 2015":"MM2","modern masters 2015 tokens":"TMM2","tempest remastered":"TPR","tarkir dragonfury":"PTKDF","dragons of tarkir promos":"PDTK","dragons of tarkir tokens":"TDTK","dragons of tarkir":"DTK","duel decks: elspeth vs. kiora":"DDO","fate reforged promos":"PFRF","fate reforged clash pack":"CP2","fate reforged tokens":"TFRF","fate reforged":"FRF","ugin's fate":"UGIN","league tokens 2015":"L15","friday night magic 2015":"F15","judge gift cards 2015":"J15","duel decks anthology: jace vs. chandra tokens":"TJVC","duel decks anthology: divine vs. demonic tokens":"TDVD","duel decks anthology: garruk vs. liliana tokens":"TGVL","duel decks anthology: divine vs. demonic":"DVD","duel decks anthology: elves vs. goblins":"EVG","duel decks anthology: elves vs. goblins tokens":"TEVG","duel decks anthology: garruk vs. liliana":"GVL","duel decks anthology: jace vs. chandra":"JVC","commander 2014 oversized":"OC14","commander 2014":"C14","commander 2014 tokens":"TC14","khans of tarkir promos":"PKTK","khans of tarkir tokens":"TKTK","khans of tarkir":"KTK","duel decks: speed vs. cunning":"DDN","from the vault: annihilation":"V14","magic 2015 tokens":"TM15","magic 2015":"M15","magic 2015 clash pack":"CP1","magic 2015 promos":"PM15","m15 prerelease challenge":"PPC1","duels of the planeswalkers 2015 promos":"PDP15","san diego comic-con 2014":"PS14","vintage masters":"VMA","conspiracy promos":"PCNS","conspiracy":"CNS","conspiracy tokens":"TCNS","modern event deck 2014":"MD1","modern event deck 2014 tokens":"TMD1","defeat a god":"TDAG","journey into nyx tokens":"TJOU","journey into nyx":"JOU","journey into nyx hero's path":"THP3","journey into nyx promos":"PJOU","duel decks: jace vs. vraska":"DDM","duel decks: jace vs. vraska tokens":"TDDM","battle the horde":"TBTH","born of the gods":"BNG","born of the gods tokens":"TBNG","born of the gods hero's path":"THP2","born of the gods promos":"PBNG","league tokens 2014":"L14","judge gift cards 2014":"J14","friday night magic 2014":"F14","commander 2013 oversized":"OC13","commander 2013":"C13","face the hydra":"TFTH","theros hero's path":"THP1","theros":"THS","theros tokens":"TTHS","theros promos":"PTHS","duel decks: heroes vs. monsters tokens":"TDDL","duel decks: heroes vs. monsters":"DDL","from the vault: twenty":"V13","magic 2014":"M14","magic 2014 tokens":"TM14","magic 2014 promos":"PM14","san diego comic-con 2013":"PSDC","modern masters":"MMA","modern masters tokens":"TMMA","dragon's maze":"DGM","dragon's maze tokens":"TDGM","dragon's maze promos":"PDGM","world magic cup qualifiers":"WMC","duel decks: sorin vs. tibalt tokens":"TDDK","duel decks: sorin vs. tibalt":"DDK","gatecrash":"GTC","gatecrash tokens":"TGTC","gatecrash promos":"PGTC","duels of the planeswalkers 2014 promos":"PDP14","league tokens 2013":"L13","friday night magic 2013":"F13","judge gift cards 2013":"J13","commander's arsenal oversized":"OCM1","commander's arsenal":"CM1","return to ravnica":"RTR","return to ravnica promos":"PRTR","return to ravnica tokens":"TRTR","duel decks: izzet vs. golgari":"DDJ","duel decks: izzet vs. golgari tokens":"TDDJ","from the vault: realms":"V12","magic 2013 tokens":"TM13","magic 2013":"M13","magic 2013 promos":"PM13","planechase 2012 planes":"OPC2","planechase 2012":"PC2","avacyn restored":"AVR","avacyn restored tokens":"TAVR","open the helvault":"PHEL","avacyn restored promos":"PAVR","duel decks: venser vs. koth tokens":"TDDI","duel decks: venser vs. koth":"DDI","dark ascension tokens":"TDKA","dark ascension":"DKA","dark ascension promos":"PDKA","wizards play network 2012":"PW12","duels of the planeswalkers 2013 promos":"PDP13","idw comics inserts":"PIDW","league tokens 2012":"L12","judge gift cards 2012":"J12","friday night magic 2012":"F12","premium deck series: graveborn":"PD3","innistrad tokens":"TISD","innistrad":"ISD","innistrad promos":"PISD","duel decks: ajani vs. nicol bolas":"DDH","duel decks: ajani vs. nicol bolas tokens":"TDDH","from the vault: legends":"V11","magic 2012":"M12","magic 2012 tokens":"TM12","magic 2012 promos":"PM12","commander 2011 oversized":"OCMD","commander 2011":"CMD","commander 2011 launch party":"PCMD","duel decks: mirrodin pure vs. new phyrexia":"TD2","new phyrexia":"NPH","new phyrexia tokens":"TNPH","new phyrexia promos":"PNPH","duel decks: knights vs. dragons tokens":"TDDG","duel decks: knights vs. dragons":"DDG","mirrodin besieged":"MBS","mirrodin besieged tokens":"TMBS","mirrodin besieged promos":"PMBS","masters edition iv":"ME4","magic premiere shop 2011":"PMPS11","wizards play network 2011":"PW11","duels of the planeswalkers 2012 promos":"PDP12","legacy championship":"OLGC","friday night magic 2011":"F11","salvat 2011":"PS11","magic player rewards 2011":"P11","judge gift cards 2011":"G11","premium deck series: fire and lightning":"PD2","magic online theme decks":"TD0","scars of mirrodin":"SOM","scars of mirrodin tokens":"TSOM","scars of mirrodin promos":"PSOM","duel decks: elspeth vs. tezzeret tokens":"TDDF","duel decks: elspeth vs. tezzeret":"DDF","from the vault: relics":"V10","magic 2011":"M11","magic 2011 tokens":"TM11","magic 2011 promos":"PM11","archenemy schemes":"OARC","archenemy":"ARC","duels of the planeswalkers":"DPA","rise of the eldrazi promos":"PROE","rise of the eldrazi tokens":"TROE","rise of the eldrazi":"ROE","duel decks: phyrexia vs. the coalition tokens":"TDDE","duel decks: phyrexia vs. the coalition":"DDE","worldwake promos":"PWWK","worldwake":"WWK","worldwake tokens":"TWWK","duels of the planeswalkers 2010 promos":"PDP10","magic premiere shop 2010":"PMPS10","friday night magic 2010":"F10","judge gift cards 2010":"G10","magic player rewards 2010":"P10","premium deck series: slivers":"H09","duel decks: garruk vs. liliana tokens":"TDDD","duel decks: garruk vs. liliana":"DDD","zendikar promos":"PZEN","zendikar tokens":"TZEN","zendikar":"ZEN","masters edition iii":"ME3","planechase planes":"OHOP","planechase":"HOP","planechase promos":"PHOP","from the vault: exiled":"V09","magic 2010 tokens":"TM10","magic 2010":"M10","magic 2010 promos":"PM10","alara reborn promos":"PARB","alara reborn":"ARB","alara reborn tokens":"TARB","duel decks: divine vs. demonic":"DDC","duel decks: divine vs. demonic tokens":"TDDC","url/convention promos":"PURL","conflux promos":"PCON","conflux tokens":"TCON","conflux":"CON","duels of the planeswalkers 2009 promos":"PDTP","magic premiere shop 2009":"PMPS09","magic player rewards 2009":"P09","judge gift cards 2009":"G09","friday night magic 2009":"F09","duel decks: jace vs. chandra tokens":"TDD2","duel decks: jace vs. chandra":"DD2","shards of alara promos":"PALA","shards of alara":"ALA","shards of alara tokens":"TALA","masters edition ii":"ME2","from the vault: dragons":"DRB","eventide promos":"PEVE","eventide":"EVE","eventide tokens":"TEVE","shadowmoor promos":"PSHM","shadowmoor tokens":"TSHM","shadowmoor":"SHM","15th anniversary cards":"P15A","morningtide promos":"PMOR","morningtide":"MOR","morningtide tokens":"TMOR","magic premiere shop 2008":"PMPS08","judge gift cards 2008":"G08","friday night magic 2008":"F08","magic player rewards 2008":"P08","duel decks: elves vs. goblins":"DD1","duel decks: elves vs. goblins tokens":"TDD1","lorwyn promos":"PLRW","lorwyn":"LRW","lorwyn tokens":"TLRW","masters edition":"ME1","tenth edition":"10E","tenth edition promos":"P10E","tenth edition tokens":"T10E","future sight promos":"PFUT","future sight":"FUT","grand prix promos":"PGPX","pro tour promos":"PPRO","planar chaos promos":"PPLC","planar chaos":"PLC","friday night magic 2007":"F07","magic premiere shop 2007":"PMPS07","judge gift cards 2007":"G07","magic player rewards 2007":"P07","happy holidays":"HHO","time spiral promos":"PTSP","time spiral":"TSP","time spiral timeshifted":"TSB","coldsnap promos":"PCSP","coldsnap theme decks":"CST","coldsnap":"CSP","dissension promos":"PDIS","dissension":"DIS","champs and states":"PCMP","guildpact promos":"PGPT","guildpact":"GPT","magic premiere shop 2006":"PMPS06","arena league 2006":"PAL06","junior apac series":"PJAS","hachette uk":"PHUK","dci promos":"DCI","judge gift cards 2006":"G06","friday night magic 2006":"F06","magic player rewards 2006":"P06","two-headed giant tournament":"P2HG","ravnica: city of guilds promos":"PRAV","magic premiere shop 2005":"PMPS","ravnica: city of guilds":"RAV","salvat 2005":"PSAL","ninth edition promos":"P9ED","ninth edition":"9ED","saviors of kamigawa promos":"PSOK","saviors of kamigawa":"SOK","betrayers of kamigawa promos":"PBOK","betrayers of kamigawa":"BOK","arena league 2005":"PAL05","junior series europe":"PJSE","magic player rewards 2005":"P05","friday night magic 2005":"F05","judge gift cards 2005":"G05","unhinged promos":"PUNH","unhinged":"UNH","champions of kamigawa promos":"PCHK","champions of kamigawa":"CHK","world championship decks 2004":"WC04","mirrodin promos":"PMRD","fifth dawn promos":"P5DN","fifth dawn":"5DN","darksteel promos":"PDST","darksteel":"DST","arena league 2004":"PAL04","friday night magic 2004":"F04","judge gift cards 2004":"G04","magic player rewards 2004":"P04","mirrodin":"MRD","world championship decks 2003":"WC03","eighth edition promos":"P8ED","eighth edition":"8ED","scourge promos":"PSCG","scourge":"SCG","legions promos":"PLGN","legions":"LGN","magic online avatars":"PMOA","japan junior tournament":"PJJT","arena league 2003":"PAL03","judge gift cards 2003":"G03","friday night magic 2003":"F03","magic player rewards 2003":"P03","vintage championship":"OVNT","world championship decks 2002":"WC02","onslaught":"ONS","onslaught promos":"PONS","hobby japan promos":"JP1","magic online promos":"PRM","judgment promos":"PJUD","judgment":"JUD","torment promos":"PTOR","torment":"TOR","arena league 2002":"PAL02","magic player rewards 2002":"PR2","judge gift cards 2002":"G02","friday night magic 2002":"F02","deckmasters":"DKM","odyssey promos":"PODY","odyssey":"ODY","world championship decks 2001":"WC01","sega dreamcast cards":"PSDG","apocalypse promos":"PAPC","apocalypse":"APC","seventh edition":"7ED","planeshift promos":"PPLS","planeshift":"PLS","arena league 2001":"PAL01","judge gift cards 2001":"G01","magic player rewards 2001":"MPR","friday night magic 2001":"F01","invasion promos":"PINV","invasion":"INV","beatdown box set":"BTD","world championship decks 2000":"WC00","prophecy promos":"PPCY","prophecy":"PCY","starter 2000":"S00","nemesis promos":"PNEM","nemesis":"NEM","european land program":"PELP","arena league 2000":"PAL00","friday night magic 2000":"FNM","judge gift cards 2000":"G00","junior super series":"PSUS","battle royale box set":"BRB","mercadian masques promos":"PMMQ","mercadian masques":"MMQ","wizards of the coast online store":"PWOS","world championship decks 1999":"WC99","world championship promos":"PWOR","guru":"PGRU","starter 1999":"S99","urza's destiny promos":"PUDS","urza's destiny":"UDS","portal three kingdoms promos":"PPTK","portal three kingdoms":"PTK","classic sixth edition":"6ED","urza's legacy promos":"PULG","urza's legacy":"ULG","arena league 1999":"PAL99","judge gift cards 1999":"G99","anthologies":"ATH","urza's saga promos":"PUSG","urza's saga":"USG","asia pacific land program":"PALP","world championship decks 1998":"WC98","unglued tokens":"TUGL","unglued":"UGL","portal second age":"P02","exodus promos":"PEXO","exodus":"EXO","stronghold promos":"PSTH","stronghold":"STH","judge gift cards 1998":"JGP","tempest promos":"PTMP","tempest":"TMP","world championship decks 1997":"WC97","weatherlight":"WTH","oversized league prizes":"OLEP","vanguard series":"PVAN","portal":"POR","microprose promos":"PMIC","astral cards":"PAST","fifth edition":"5ED","visions":"VIS","introductory two-player set":"ITP","multiverse gift box":"MGB","mirage":"MIR","redemption program":"PRED","celebration cards":"PCEL","arena league 1996":"PARL","dci legend membership":"PLGM","rivals quick start set":"RQS","alliances":"ALL","pro tour collector set":"PTC","oversized 90's promos":"O90P","homelands":"HML","renaissance":"REN","rinascimento":"RIN","chronicles":"CHR","chronicles foreign black border":"BCHR","ice age":"ICE","fourth edition foreign black border":"4BB","fourth edition":"4ED","media and collaboration promos":"PMEI","fallen empires":"FEM","harperprism book promos":"PHPR","the dark":"DRK","dragon con":"PDRC","summer magic / edgar":"SUM","legends":"LEG","foreign black border":"FBB","revised edition":"3ED","antiquities":"ATQ","arabian nights":"ARN","intl. collectors' edition":"CEI","collectors' edition":"CED","unlimited edition":"2ED","limited edition beta":"LEB","limited edition alpha":"LEA"}</script>
+<script id="main-js">
+(function () {
+  const DRAFT_KEY = "boveda-mazos-draft-v2";
+  const UI_KEY = "boveda-mazos-ui-v2";
+  const BACKUP_KEY = "boveda-mazos-lastbackup";     // when all decks were last written to a file
+  const FILE_DIRTY_KEY = "boveda-mazos-filedirty";  // changes made since then (local version)
+  let fileHandle = null;
+  const BASICS = new Set(["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes", "Snow-Covered Plains", "Snow-Covered Island", "Snow-Covered Swamp", "Snow-Covered Mountain", "Snow-Covered Forest", "Snow-Covered Wastes"]);
+  const SPRITE = { cols: 10, rows: 6 };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const localMode = !(window.claude && window.claude.use);
+
+  let stored = null, S = null, dirty = false;
+  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "" };
+  let artifactApi = null, downloadsApi = null, assetsApi = null, canPublish = false, readOnly = false;
+  let previewIdx = null;
+
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+  const deckOf = (id) => S.decks.find((d) => d.id === id);
+  const count = (d) => d.cards.reduce((a, c) => a + c.q, 0);
+  const value = (d) => d.cards.reduce((a, c) => a + c.q * c.p, 0);
+  const meta = (n) => S.meta[n] || null;
+  const isCmd = (d, n) => d.cmd.includes(n);
+
+  function change() {
+    dirty = true;
+    lsSet(DRAFT_KEY, { base: stored.savedAt, data: S });
+    if (localMode) lsSet(FILE_DIRTY_KEY, true);
+    render();
+  }
+
+  // ---------- Card data ----------
+  const TYPE_GROUPS = [
+    ["Creature", "Criaturas"], ["Planeswalker", "Planeswalkers"], ["Battle", "Batallas"], ["Land", "Tierras"],
+    ["Instant", "Instantáneos"], ["Sorcery", "Conjuros"], ["Artifact", "Artefactos"], ["Enchantment", "Encantamientos"],
+  ];
+  const COLOR_NAMES = { W: "Blanco", U: "Azul", B: "Negro", R: "Rojo", G: "Verde" };
+  function typeGroup(n) {
+    const m = meta(n);
+    if (!m) return "Sin datos";
+    const t = m.t.split(" // ")[0];
+    const hit = TYPE_GROUPS.find(([k]) => t.includes(k));
+    return hit ? hit[1] : "Otros";
+  }
+  function isLand(n) { return typeGroup(n) === "Tierras"; }
+  function cmcOf(n) { const m = meta(n); return m ? m.cmc : 0; }
+  function groupKey(d, c) {
+    if (isCmd(d, c.n)) return "Comandante";
+    if (ui.group === "type") return typeGroup(c.n);
+    if (ui.group === "cmc") { if (isLand(c.n)) return "Tierras"; const v = Math.floor(cmcOf(c.n)); return v >= 7 ? "Coste 7+" : "Coste " + v; }
+    if (ui.group === "color") {
+      if (isLand(c.n)) return "Tierras";
+      const m = meta(c.n); if (!m) return "Sin datos";
+      const cols = (m.m.match(/[WUBRG]/g) || []).filter((x, i, a) => a.indexOf(x) === i);
+      return cols.length === 0 ? "Incoloro" : cols.length > 1 ? "Multicolor" : COLOR_NAMES[cols[0]];
+    }
+    return "Cartas";
+  }
+  const GROUP_ORDER = ["Comandante", ...TYPE_GROUPS.map((x) => x[1]).filter((x) => x !== "Tierras"), "Blanco", "Azul", "Negro", "Rojo", "Verde", "Multicolor", "Incoloro",
+    "Coste 0", "Coste 1", "Coste 2", "Coste 3", "Coste 4", "Coste 5", "Coste 6", "Coste 7+", "Cartas", "Otros", "Tierras", "Sin datos"];
+
+  // Official mana symbols (Scryfall SVGs) embedded in the page; anything missing falls back to a drawn circle.
+  const SYMS = (() => { try { return JSON.parse($("mana-syms").textContent) || {}; } catch (e) { return {}; } })();
+  const symImg = (s, cls) => `<img class="${cls} sym" src="${SYMS[s]}" alt="${esc(s)}" draggable="false">`;
+  function costHtml(cost) {
+    if (!cost) return "";
+    const syms = cost.match(/\{[^}]+\}/g) || [];
+    return `<span class="cost" aria-label="Coste ${esc(cost)}">` + syms.map((s) => {
+      if (SYMS[s]) return symImg(s, "ms");
+      const x = s.slice(1, -1);
+      const parts = x.split("/");
+      const cols = parts.filter((p) => "WUBRG".includes(p));
+      if (parts.length === 2 && cols.length) {
+        const a = "WUBRG".includes(parts[0]) ? `var(--m${parts[0]})` : "var(--mC)";
+        const b = "WUBRG".includes(parts[1]) ? `var(--m${parts[1]})` : "var(--mC)";
+        const label = parts[1] === "P" ? "ϕ" : "";
+        return `<span class="ms" style="background:linear-gradient(135deg, ${a} 50%, ${b} 50%)">${label}</span>`;
+      }
+      return `<span class="ms ${"WUBRG".includes(x) ? x : ""}">${"WUBRG".includes(x) ? "" : esc(x)}</span>`;
+    }).join("") + "</span>";
+  }
+  // Back face image of a Scryfall card object (transform, modal DFC, reversible), or "" for single-image cards.
+  const backOf = (sc) => { const f = sc.card_faces || []; return f.length > 1 && f[1].image_uris ? f[1].image_uris.normal : ""; };
+  // Back face for a card in a deck: its own chosen printing's back, else the default one (only reachable where Scryfall is).
+  function backImg(n, c) {
+    if (c && c.imb) return c.imb;
+    const m = meta(n);
+    return localMode && m && m.b ? m.b : "";
+  }
+  // With flip set, double-faced cards get a button that turns the card over, like Scryfall's "Turn over".
+  function artHtml(n, cls, c, flip) {
+    const back = flip && backImg(n, c);
+    if (back) return `<span class="flip"><span class="faces">${artHtml(n, cls, c)}<img class="art back" src="${esc(back)}" alt="${esc(n)} (reverso)" loading="lazy" decoding="async"></span>`
+      + `<span class="flipbtn" role="button" tabindex="0" data-flip title="Dar la vuelta" aria-label="Dar la vuelta a la carta">${icon("flip")}</span></span>`;
+    const m = meta(n);
+    const alt = esc(n);
+    if (c && c.im) return `<img class="art ${cls || ""}" src="${esc(c.im)}" alt="${alt}" loading="lazy" decoding="async">`;
+    if (m && m.img && (localMode || !m.sp)) return `<img class="art ${cls || ""}" src="${esc(m.img)}" alt="${alt}" loading="lazy" decoding="async">`;
+    if (m && m.sp) {
+      const i = m.sp[1], col = i % SPRITE.cols, row = Math.floor(i / SPRITE.cols);
+      return `<div class="art ${cls || ""}" role="img" aria-label="${alt}" style="background-image:url(img/s${m.sp[0]}.jpg);background-size:${SPRITE.cols * 100}% ${SPRITE.rows * 100}%;background-position:${(col * 100) / (SPRITE.cols - 1)}% ${(row * 100) / (SPRITE.rows - 1)}%"></div>`;
+    }
+    return `<div class="art ph ${cls || ""}"><b>${alt}</b><span>${m ? esc(m.t) : "Sin imagen"}</span>${m ? costHtml(m.m) : ""}</div>`;
+  }
+  // StarCityGames search for the card (front face name for double-faced cards).
+  const scgUrl = (n) => "https://starcitygames.com/search/?search_query=" + encodeURIComponent(n.split(" // ")[0]);
+  function scryUrl(n) {
+    const m = meta(n);
+    return m && m.u ? m.u : "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"');
+  }
+  // Fills card data for names we don't know yet (works where Scryfall is reachable, e.g. the local file).
+  function lookupMissing() {
+    const names = [...new Set(S.decks.flatMap((d) => d.cards.map((c) => c.n)))].filter((n) => !S.meta[n]);
+    if (!names.length) return;
+    const chunks = [];
+    for (let i = 0; i < names.length; i += 75) chunks.push(names.slice(i, i + 75));
+    let got = 0;
+    chunks.reduce((p, chunk) => p.then(() => fetch("https://api.scryfall.com/cards/collection", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers: chunk.map((n) => ({ name: n.split(" // ")[0] })) }),
+    }).then((r) => r.json()).then((res) => {
+      for (const c of res.data || []) {
+        const face = (c.card_faces || [c])[0];
+        const key = chunk.find((n) => norm(n.split(" // ")[0]) === norm(c.name.split(" // ")[0])) || c.name;
+        S.meta[key] = { t: face.type_line || c.type_line || "", m: face.mana_cost != null ? face.mana_cost : c.mana_cost || "", cmc: c.cmc || 0,
+          ci: (c.color_identity || []).join(""), img: ((c.image_uris || face.image_uris) || {}).normal || "", u: (c.scryfall_uri || "").split("?")[0] };
+        const back = backOf(c);
+        if (back) S.meta[key].b = back;
+        got++;
+      }
+    })), Promise.resolve()).then(() => { if (got) change(); }, () => {});
+  }
+
+  // ---------- CSV ----------
+  function parseCsv(text) {
+    const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
+    if (!lines.length) return [];
+    const sep = lines[0].includes("\t") ? "\t" : ",";
+    const head = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+    const col = (names, fb) => { const i = head.findIndex((h) => names.includes(h)); return i < 0 ? fb : i; };
+    const iq = col(["quantityx", "quantity", "qty", "cantidad"], 0), inn = col(["name", "nombre"], 1),
+      ie = col(["edition", "set", "edicion", "edición"], 2), iff = col(["foil"], 3), ip = col(["price", "precio"], 4);
+    const hasHead = head.includes("name") || head.includes("quantityx") || head.includes("nombre");
+    return lines.slice(hasHead ? 1 : 0).map((l) => {
+      const f = l.split(sep);
+      const name = (f[inn] || "").trim();
+      if (!name) return null;
+      return { q: Math.max(1, parseInt(f[iq], 10) || 1), n: name, e: (f[ie] || "").trim(), f: /foil/i.test(f[iff] || ""),
+        p: parseFloat(String(f[ip] || "").replace(/[^0-9.]/g, "")) || 0 };
+    }).filter(Boolean);
+  }
+  function toCsv(d) {
+    return "QuantityX\tName\tEdition\tFoil\tPrice\n" +
+      d.cards.map((c) => `${c.q}x\t${c.n}\t${c.e}\t${c.f ? "Foil" : ""}\t${money(c.p)}`).join("\n") + "\n";
+  }
+  function guessCommander(name, cards) {
+    const k = norm(name);
+    const hit = cards.find((c) => norm(c.n).startsWith(k));
+    return hit ? [hit.n] : [];
+  }
+  function importFiles(files) {
+    const backup = [...files].find((f) => /\.json$/i.test(f.name));
+    if (backup) return restoreBackup(backup);
+    let added = 0, replaced = 0;
+    const jobs = [...files].map((file) => file.text().then((text) => {
+      const cards = parseCsv(text);
+      if (!cards.length) return;
+      const name = file.name.replace(/\.[^.]+$/, "").split("_")[0].trim() || file.name;
+      const existing = S.decks.find((d) => norm(d.name) === norm(name));
+      if (existing) {
+        existing.cards = cards;
+        existing.cmd = existing.cmd.filter((n) => cards.some((c) => c.n === n));
+        if (!existing.cmd.length) existing.cmd = guessCommander(name, cards);
+        ui.deck = existing.id; replaced++;
+      } else {
+        const d = { id: uid(), name, cmd: guessCommander(name, cards), cards };
+        S.decks.push(d); ui.deck = d.id; added++;
+      }
+    }));
+    Promise.all(jobs).then(() => {
+      if (!added && !replaced) { toast("No se encontraron cartas en ese archivo. Revisa que tenga columnas separadas por tabulador."); return; }
+      change(); lookupMissing();
+      toast([added && `${added} mazo(s) nuevo(s)`, replaced && `${replaced} mazo(s) actualizado(s)`].filter(Boolean).join(", "));
+    });
+  }
+
+  // ---------- Render ----------
+  function render() {
+    renderStatus();
+    renderSide();
+    if (ui.filter.trim().length >= 2) renderSearch(); else renderDeck();
+    const { filter, ...keep } = ui;
+    lsSet(UI_KEY, keep);
+  }
+  function renderStatus() {
+    const st = $("status");
+    if (localMode) {
+      // Edits from before this button existed only live in the browser draft, so they count as unsaved too.
+      const last = lsGet(BACKUP_KEY), unsaved = lsGet(FILE_DIRTY_KEY) || (!last && dirty);
+      const t = last && new Date(last), today = t && t.toDateString() === new Date().toDateString();
+      st.textContent = unsaved ? "Sin guardar" : last ? "Guardado " + t.toLocaleString("es", today ? { timeStyle: "short" } : { day: "numeric", month: "short" }) : "Sin cambios";
+      st.title = unsaved ? "Hay cambios que aún no están en tu archivo de respaldo" : last ? "Último guardado en archivo: " + fmtDate(last) : "";
+      st.className = unsaved ? "status dirty" : "status";
+      const b = $("saveBtn");
+      b.hidden = false;
+      b.classList.toggle("primary", !!unsaved);
+      b.title = "Guardar todos tus mazos en un archivo de respaldo" + (fileHandle ? ` (${fileHandle.name})` : "") + " · Ctrl+S";
+      return;
+    }
+    else if (readOnly) { st.textContent = "Solo lectura: tus cambios quedan en este navegador"; st.className = "status"; }
+    else if (dirty) { st.textContent = "Cambios sin guardar"; st.className = "status dirty"; }
+    else { st.textContent = "Todo guardado"; st.className = "status"; }
+    $("saveBtn").hidden = !(dirty && canPublish);
+  }
+  // Color identity of a deck: its commander(s), or every card when no commander is set.
+  const COMBOS = {
+    "": "Incoloro", W: "Blanco", U: "Azul", B: "Negro", R: "Rojo", G: "Verde",
+    WU: "Azorius", UB: "Dimir", BR: "Rakdos", RG: "Gruul", WG: "Selesnya", WB: "Orzhov", UR: "Izzet", BG: "Golgari", WR: "Boros", UG: "Simic",
+    WUB: "Esper", UBR: "Grixis", BRG: "Jund", WRG: "Naya", WUG: "Bant", WBG: "Abzan", WUR: "Jeskai", UBG: "Sultai", WBR: "Mardu", URG: "Temur",
+    WUBR: "Yore-Tiller", UBRG: "Glint-Eye", WBRG: "Dune-Brood", WURG: "Ink-Treader", WUBG: "Witch-Maw", WUBRG: "Cinco colores",
+  };
+  const COMBO_ORDER = Object.keys(COMBOS);
+  function deckColors(d) {
+    const set = new Set();
+    (d.cmd.length ? d.cmd : d.cards.map((c) => c.n)).forEach((n) => { const m = meta(n); if (m) for (const ch of m.ci || "") set.add(ch); });
+    return "WUBRG".split("").filter((c) => set.has(c)).join("");
+  }
+  function pipsHtml(ci) {
+    return `<span class="pips" aria-label="${esc(COMBOS[ci] || ci)}" title="${esc(COMBOS[ci] || ci)}">${(ci || "C").split("").map((c) =>
+      SYMS["{" + c + "}"] ? symImg("{" + c + "}", "pip") : `<span class="pip ${c}">${c}</span>`).join("")}</span>`;
+  }
+  let menuOpen = false;
+  function renderSide() {
+    const cur = !ui.filter.trim() && deckOf(ui.deck);
+    const cols = [["Monocolor", (n) => n <= 1], ["Dos colores", (n) => n === 2], ["Tres colores", (n) => n === 3], ["Cuatro o más", (n) => n >= 4]];
+    const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
+      .sort((a, b) => COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci) || a.d.name.localeCompare(b.d.name));
+    const mega = cols.map(([title, test]) => {
+      const list = items.filter((x) => test(x.ci.length));
+      return list.length ? `<div class="mcol"><h3>${title}</h3>${list.map(({ d, ci }) => `
+        <button type="button" class="mitem${cur && cur.id === d.id ? " on" : ""}" data-deck="${d.id}">
+          ${pipsHtml(ci)}<span><b>${esc(d.name)}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
+        </button>`).join("")}</div>` : "";
+    }).join("") || `<p class="status empty">Aún no hay mazos. Importa un CSV o crea uno nuevo.</p>`;
+    $("decklist").innerHTML = `
+      <button type="button" class="dmbtn" id="dmBtn" aria-expanded="${menuOpen}" aria-haspopup="true">
+        <span class="lbl">Mazos</span>${cur ? pipsHtml(deckColors(cur)) + `<b>${esc(cur.name)}</b>` : `<b>Elegir mazo</b>`}<span class="caret">▾</span>
+      </button>
+      ${menuOpen ? `<div class="mega" role="menu">${mega}<div class="totals mtot" id="totals"></div></div>` : ""}`;
+    const all = S.decks.reduce((a, d) => a + value(d), 0);
+    const cards = S.decks.reduce((a, d) => a + count(d), 0);
+    if ($("totals")) $("totals").innerHTML = `<div><span>Mazos</span><span class="num">${S.decks.length}</span></div>
+      <div><span>Cartas</span><span class="num">${cards}</span></div>
+      <div><span>Valor total</span><span class="num">${money(all)}</span></div>`;
+  }
+  function otherDecksIndex(exceptId) {
+    const m = new Map();
+    for (const d of S.decks) if (d.id !== exceptId) for (const c of d.cards) {
+      if (BASICS.has(c.n)) continue;
+      if (!m.has(c.n)) m.set(c.n, []);
+      if (!m.get(c.n).includes(d.name)) m.get(c.n).push(d.name);
+    }
+    return m;
+  }
+  function sortedRows(d) {
+    const f = norm(d.localFilter || "");
+    const keyFns = { n: (c) => c.n.toLowerCase(), cmc: (c) => cmcOf(c.n) * 1000 + 0, p: (c) => -c.p };
+    const key = keyFns[ui.sort] || keyFns.n;
+    return d.cards.map((c, i) => ({ c, i }))
+      .filter(({ c }) => !(ui.hideOk && c.ok))
+      .filter(({ c }) => !f || norm(c.n).includes(f) || norm(c.e).includes(f) || (meta(c.n) && norm(meta(c.n).t).includes(f)))
+      .sort((a, b) => { const x = key(a.c), y = key(b.c); return x < y ? -1 : x > y ? 1 : a.c.n.localeCompare(b.c.n); });
+  }
+  function groupsOf(d, rows) {
+    const g = new Map();
+    for (const r of rows) { const k = groupKey(d, r.c); if (!g.has(k)) g.set(k, []); g.get(k).push(r); }
+    return [...g.entries()].sort((a, b) => GROUP_ORDER.indexOf(a[0]) - GROUP_ORDER.indexOf(b[0]));
+  }
+  function curveHtml(d) {
+    const b = [0, 0, 0, 0, 0, 0, 0, 0];
+    for (const c of d.cards) if (meta(c.n) && !isLand(c.n)) b[Math.min(7, Math.floor(cmcOf(c.n)))] += c.q;
+    const max = Math.max(1, ...b);
+    return `<div class="curve" title="Curva de maná (sin tierras)"><div class="bars">${b.map((v, i) =>
+      `<div class="bar" title="${v} carta(s) de coste ${i === 7 ? "7+" : i}"><b>${v || ""}</b><i style="height:${(v / max) * 54}px"></i><em>${i === 7 ? "7+" : i}</em></div>`).join("")}</div></div>`;
+  }
+  function deckStats(d) {
+    const foils = d.cards.filter((c) => c.f).reduce((a, c) => a + c.q, 0);
+    const byType = {};
+    d.cards.forEach((c) => { const g = typeGroup(c.n); byType[g] = (byType[g] || 0) + c.q; });
+    const typeCounts = [...TYPE_GROUPS.map((x) => x[1]), "Otros", "Sin datos"].filter((g) => byType[g]).map((g) => [g.toLowerCase(), byType[g]]);
+    const spells = d.cards.filter((c) => !isLand(c.n) && meta(c.n));
+    const spellQ = spells.reduce((a, c) => a + c.q, 0);
+    const avgCmc = spellQ ? (spells.reduce((a, c) => a + cmcOf(c.n) * c.q, 0) / spellQ).toFixed(2) : "—";
+    return { foils, typeCounts, avgCmc };
+  }
+  // Dropdown menu for a ui setting. The summary shows the chosen option's icon, else iconKey, else the icon named after the key.
+  function seg(key, title, opts, iconKey) {
+    const cur = opts.find(([val]) => ui[key] === val) || opts[0];
+    return `<details class="more dd">
+      <summary class="btn" aria-label="${title}">${icon(cur[2] || iconKey || key)}<span class="ddk">${title}</span> ${cur[1]}${icon("chev")}</summary>
+      <div class="menu">${opts.map(([val, label, ic]) => `<button type="button" data-${key}="${val}" class="${ui[key] === val ? "on" : ""}">${ic ? icon(ic) : ""}${label}</button>`).join("")}</div>
+    </details>`;
+  }
+  // Main page: one card per deck, sorted by ui.hsort (color identity by default, like the Mazos menu).
+  const avgOf = (d) => { const a = parseFloat(deckStats(d).avgCmc); return isNaN(a) ? 99 : a; };
+  const HOME_SORTS = {
+    color: (a, b) => COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci),
+    ncolors: (a, b) => a.ci.length - b.ci.length || COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci),
+    name: () => 0,
+    value: (a, b) => value(b.d) - value(a.d),
+    cmc: (a, b) => avgOf(a.d) - avgOf(b.d),
+    foils: (a, b) => deckStats(b.d).foils - deckStats(a.d).foils,
+  };
+  function renderHome() {
+    const v = $("view");
+    if (!S.decks.length) { v.innerHTML = `<div class="deckhead empty">Aún no hay mazos. Importa un CSV (también puedes arrastrarlo aquí) o crea un mazo nuevo.</div>`; return; }
+    const by = HOME_SORTS[ui.hsort] || HOME_SORTS.color;
+    const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
+      .sort((a, b) => by(a, b) || a.d.name.localeCompare(b.d.name));
+    const all = S.decks.reduce((a, d) => a + value(d), 0);
+    const cards = S.decks.reduce((a, d) => a + count(d), 0);
+    v.innerHTML = `
+      <div class="homehead">
+        <h2>Mis mazos</h2>
+        <div class="statline"><span><b class="num">${S.decks.length}</b> mazos</span><span><b class="num">${cards}</b> cartas</span><span><b class="num">${money(all)}</b> valor total</span></div>
+        <div class="hsort">${seg("hsort", "Ordenar", [["color", "Colores", "palette"], ["ncolors", "Número de colores", "circles"], ["name", "Nombre", "az"], ["value", "Valor (mayor primero)", "dollar"], ["cmc", "Coste medio (menor primero)", "bolt"], ["foils", "Foils (más primero)", "sparkle"]], "sort")}</div>
+      </div>
+      <div class="decks">${items.map(({ d, ci }) => {
+        const n = count(d), { foils, typeCounts, avgCmc } = deckStats(d);
+        const cmds = d.cmd.map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
+        return `<button type="button" class="dcard" data-deck="${d.id}">
+          <div class="thumbs">${cmds.length ? cmds.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">?</span>`}</div>
+          <div class="info">
+            <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}<span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span></div>
+            <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
+            <div class="statline"><span><b class="num">${money(value(d))}</b> valor</span><span><b class="num">${foils}</b> foils</span><span><b class="num">${avgCmc}</b> coste medio</span></div>
+            <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
+            ${curveHtml(d)}
+          </div>
+        </button>`;
+      }).join("")}</div>`;
+  }
+  function renderDeck() {
+    const d = deckOf(ui.deck);
+    const v = $("view");
+    if (!d) return renderHome();
+    const n = count(d), val = value(d);
+    const { foils, typeCounts, avgCmc } = deckStats(d);
+    const okCount = d.cards.filter((c) => c.ok).length;
+    const rows = sortedRows(d);
+    const cmdIdx = d.cmd.map((x) => d.cards.findIndex((c) => c.n === x)).filter((i) => i >= 0);
+    let body;
+    if (ui.view === "table") body = tableHtml(d, rows);
+    else if (ui.view === "grid") body = gridHtml(d, rows);
+    else body = listHtml(d, rows);
+    const showPreview = ui.view === "list";
+    if (previewIdx == null || !d.cards[previewIdx]) {
+      const ci = d.cards.findIndex((c) => isCmd(d, c.n));
+      previewIdx = ci >= 0 ? ci : d.cards.length ? 0 : null;
+    }
+    v.innerHTML = `
+      <section class="deckhead compact">
+        <div class="cmdthumbs">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
+          : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
+        <div class="dh-main">
+          <div class="titlerow">
+            <h2 class="deckname">${esc(d.name)}</h2>
+            ${pipsHtml(deckColors(d))}
+            <span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span>
+          </div>
+          <div class="cmdr">${d.cmd.length ? d.cmd.map((x) => `<b>${esc(x)}</b>`).join(" + ") : "Sin comandante: abre una carta y márcala como comandante."}</div>
+          <div class="statline"><span><b class="num">${money(val)}</b> valor</span><span><b class="num">${foils}</b> foils</span>
+            <span><b class="num">${avgCmc}</b> coste medio</span><span><b class="num">${d.cards.length}</b> cartas distintas</span></div>
+          <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
+          <div class="dh-actions">
+          <button class="btn ibtn add" id="addCardBtn" type="button" title="Agregar carta" aria-label="Agregar carta">${icon("plus")}</button>
+          <button class="btn ibtn" id="exportBtn" type="button" title="Exportar" aria-label="Exportar">${icon("export")}</button>
+          <button class="btn ibtn" type="button" id="renameBtn" title="Renombrar" aria-label="Renombrar">${icon("edit")}</button>
+          <button class="btn ibtn" type="button" id="dupBtn" title="Duplicar" aria-label="Duplicar">${icon("copy")}</button>
+          <button class="btn ibtn danger" type="button" id="delDeckBtn" title="Eliminar mazo" aria-label="Eliminar mazo">${icon("trash")}</button>
+          </div>
+        </div>
+        ${curveHtml(d)}
+        <div class="toolbar">
+          ${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
+          ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
+          ${seg("sort", "Ordenar", [["n", "Nombre", "az"], ["cmc", "Coste", "bolt"], ["p", "Precio", "dollar"]])}` : ""}
+          <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button>
+          <input id="deckFilter" type="search" placeholder="Filtrar por nombre, tipo o edición…" value="${esc(d.localFilter || "")}" aria-label="Filtrar cartas del mazo">
+        </div>
+      </section>
+      <div class="board${showPreview ? "" : " nopreview"}">
+        ${showPreview ? `<aside class="preview" id="preview">${previewHtml(d)}</aside>` : ""}
+        <div>${body}</div>
+      </div>`;
+  }
+  function previewHtml(d) {
+    const c = d.cards[previewIdx];
+    if (!c) return "";
+    const m = meta(c.n);
+    return `${artHtml(c.n, "", c, true)}
+      <div class="pname">${esc(c.n)}</div>
+      <div class="pmeta"><span class="num">${money(c.p)}</span>${c.f ? `<span style="color:var(--foil);font-weight:700">Foil</span>` : ""}<span>${esc(c.e)}</span></div>
+      ${m ? `<div class="pmeta">${esc(m.t)}</div>` : ""}`;
+  }
+  function groupHead(name, rows, extra) {
+    const qty = rows.reduce((a, r) => a + r.c.q, 0);
+    const val = rows.reduce((a, r) => a + r.c.q * r.c.p, 0);
+    const closed = ui.collapsed[name];
+    return `<button type="button" class="ghead" data-collapse="${esc(name)}" aria-expanded="${!closed}">${esc(name)} <span class="num">(${qty})</span>${extra || ""}<span class="gval num">${money(val)}</span><span class="caret">${closed ? "▸" : "▾"}</span></button>`;
+  }
+  // Check mark for "already compared against the real card" (image, edition…); marks this copy only.
+  const okBtn = (c, i) => `<span class="okbtn${c.ok ? " on" : ""}" role="button" tabindex="0" data-ok="${i}" aria-pressed="${!!c.ok}"
+    title="${c.ok ? "Verificada · clic para desmarcar" : "Marcar como verificada"}" aria-label="${c.ok ? "Verificada" : "Marcar como verificada"}: ${esc(c.n)}">${icon("check")}</span>`;
+  function listHtml(d, rows) {
+    if (!rows.length) return emptyHtml(d);
+    return `<div class="groups">${groupsOf(d, rows).map(([name, rs]) => `
+      <section class="group">${groupHead(name, rs)}
+        ${ui.collapsed[name] ? "" : rs.map(({ c, i }) => `
+          <div class="row${i === previewIdx ? " sel" : ""}" data-card="${i}" tabindex="0" role="button" aria-label="${esc(c.n)}">
+            <span class="q num">${c.q}</span>
+            <span class="nm">${esc(c.n)}${c.f ? `<span class="foilmark">FOIL</span>` : ""}</span>
+            ${meta(c.n) ? costHtml(meta(c.n).m) : "<span></span>"}
+            ${okBtn(c, i)}
+          </div>`).join("")}
+      </section>`).join("")}</div>`;
+  }
+  function gridHtml(d, rows) {
+    if (!rows.length) return emptyHtml(d);
+    return groupsOf(d, rows).map(([name, rs]) => `
+      <section class="gsec">${groupHead(name, rs)}
+        ${ui.collapsed[name] ? "" : `<div class="ggrid">${rs.map(({ c, i }) => `
+          <button type="button" class="gcard" data-card="${i}" title="${esc(c.n)}">
+            ${artHtml(c.n, "", c, true)}${okBtn(c, i)}
+            ${c.q > 1 ? `<span class="badge">${c.q}x</span>` : ""}${c.f ? `<span class="badge foil">Foil</span>` : ""}
+            <span class="cap"><span>${esc(c.n)}</span><span class="num">${money(c.p)}</span></span>
+          </button>`).join("")}</div>`}
+      </section>`).join("");
+  }
+  function tableHtml(d, rows) {
+    const others = otherDecksIndex(d.id);
+    const key = { ok: (c) => (c.ok ? 1 : 0), q: (c) => c.q, n: (c) => c.n.toLowerCase(), t: (c) => typeGroup(c.n), m: (c) => cmcOf(c.n), e: (c) => c.e.toLowerCase(), f: (c) => (c.f ? 1 : 0), p: (c) => c.p, s: (c) => c.p * c.q }[ui.tsort] || ((c) => c.n);
+    rows = [...rows].sort((a, b) => {
+      const ac = isCmd(d, a.c.n), bc = isCmd(d, b.c.n);
+      if (ac !== bc) return ac ? -1 : 1;
+      const x = key(a.c), y = key(b.c);
+      return (x < y ? -1 : x > y ? 1 : 0) * ui.dir;
+    });
+    const arrow = (k) => (ui.tsort === k ? (ui.dir > 0 ? " ▲" : " ▼") : "");
+    return `<div class="tablewrap"><table>
+      <thead><tr>
+        <th class="sort" data-tsort="ok" title="Verificada">✓${arrow("ok")}</th>
+        <th class="sort" data-tsort="q">Cant.${arrow("q")}</th>
+        <th class="sort" data-tsort="n">Carta${arrow("n")}</th>
+        <th class="sort" data-tsort="t">Tipo${arrow("t")}</th>
+        <th class="sort" data-tsort="m">Coste${arrow("m")}</th>
+        <th class="sort" data-tsort="e">Edición${arrow("e")}</th>
+        <th class="sort" data-tsort="f">Foil${arrow("f")}</th>
+        <th class="sort r" data-tsort="p">Precio${arrow("p")}</th>
+        <th class="sort r" data-tsort="s">Subtotal${arrow("s")}</th>
+        <th><span hidden>Quitar</span></th>
+      </tr></thead>
+      <tbody>${rows.map(({ c, i }) => {
+        const o = others.get(c.n), m = meta(c.n);
+        return `<tr data-i="${i}" class="${isCmd(d, c.n) ? "is-cmdr" : ""}${c.ok ? " is-ok" : ""}">
+          <td>${okBtn(c, i)}</td>
+          <td><span class="qty"><button type="button" data-act="dec" aria-label="Quitar una copia">−</button><span class="num">${c.q}</span><button type="button" data-act="inc" aria-label="Agregar una copia">+</button></span></td>
+          <td><button type="button" class="linkbtn" data-card="${i}">${esc(c.n)}</button>${isCmd(d, c.n) ? `<span class="tag c">Comandante</span>` : ""}${o ? `<span class="tag" title="También en: ${esc(o.join(", "))}">+${o.length} mazo${o.length > 1 ? "s" : ""}</span>` : ""}</td>
+          <td class="type">${m ? esc(m.t.split(" // ")[0]) : "—"}</td>
+          <td>${m ? costHtml(m.m) : ""}</td>
+          <td><input class="edit" data-field="e" value="${esc(c.e)}" aria-label="Edición de ${esc(c.n)}"></td>
+          <td><button type="button" class="foilbtn${c.f ? " on" : ""}" data-act="foil">${c.f ? "Foil" : "No"}</button></td>
+          <td class="r"><input class="edit price" data-field="p" value="${c.p.toFixed(2)}" inputmode="decimal" aria-label="Precio de ${esc(c.n)}"></td>
+          <td class="r num">${money(c.p * c.q)}</td>
+          <td class="r"><button type="button" class="x" data-act="del" aria-label="Eliminar ${esc(c.n)}">×</button></td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="10" class="empty">${d.cards.length ? "Ninguna carta coincide con el filtro." : "Este mazo está vacío. Agrega cartas con el formulario de arriba."}</td></tr>`}</tbody>
+    </table></div>`;
+  }
+  function emptyHtml(d) {
+    return `<div class="deckhead empty">${d.cards.length ? "Ninguna carta coincide con el filtro." : "Este mazo está vacío. Agrega cartas con el formulario de arriba."}</div>`;
+  }
+  function renderSearch() {
+    const q = norm(ui.filter.trim());
+    const hits = new Map();
+    for (const d of S.decks) d.cards.forEach((c, i) => {
+      if (!norm(c.n).includes(q)) return;
+      if (!hits.has(c.n)) hits.set(c.n, []);
+      hits.get(c.n).push({ d, c, i });
+    });
+    const list = [...hits.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    $("view").innerHTML = `
+      <section class="deckhead"><div class="titlerow"><h2 class="deckname">Resultados</h2>
+      <span class="status">${list.length} carta(s) coinciden con “${esc(ui.filter.trim())}”</span></div></section>
+      <div class="results">${list.slice(0, 120).map(([name, arr]) => `
+        <div class="result">
+          ${artHtml(name)}
+          <div>
+            <h3>${esc(name)} ${meta(name) ? costHtml(meta(name).m) : ""}</h3>
+            <p class="status">${meta(name) ? esc(meta(name).t) + " · " : ""}en ${new Set(arr.map((x) => x.d.id)).size} mazo(s)</p>
+            <div class="chips">${arr.map(({ d, c }) => `<button class="chip" type="button" data-goto="${d.id}">${esc(d.name)} · ${c.q}x ${esc(c.e)}${c.f ? " · Foil" : ""}</button>`).join("")}</div>
+          </div>
+        </div>`).join("") || `<div class="deckhead empty">Ninguna carta coincide en tus mazos.</div>`}
+      </div>`;
+  }
+
+  // ---------- Overlays ----------
+  function toast(msg) {
+    const t = document.createElement("div");
+    t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+  const ICONS = {
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 10v10"/>',
+    group: '<path d="M12 3 2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5"/>',
+    sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    trash: '<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
+    export: '<path d="M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>',
+    edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 22 9.8C22 6 17.5 3 12 3z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+    circles: '<circle cx="8" cy="9" r="5"/><circle cx="16" cy="9" r="5"/><circle cx="12" cy="16" r="5"/>',
+    az: '<path d="M3 19 7 5l4 14M4.5 14h5M14 6h7l-7 13h7"/>',
+    dollar: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+    sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/>',
+    flip: '<path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M18.5 2v3.8h-3.8M5.5 22v-3.8h3.8"/>',
+    cards: '<rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5 4 7a2 2 0 0 0-.9 2.6l4.6 10.3a2 2 0 0 0 2.6 1l1.7-.8"/>',
+    none: '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  };
+  const icon = (k) => `<svg class="ic${k === "chev" ? " chev" : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
+  function addCardModal() {
+    modal(`<h3>Agregar carta</h3>
+      <form class="addform" id="addForm" autocomplete="off">
+        <label class="f-q">Cantidad<input id="addQ" type="number" min="1" value="1"></label>
+        <label class="f-n">Nombre<input id="addN" type="text" placeholder="Nombre de la carta (en inglés)" required autofocus></label>
+        <label class="f-e">Edición<input id="addE" type="text" placeholder="Opcional"></label>
+        <label class="f-p">Precio<input id="addP" type="text" inputmode="decimal" placeholder="$0.00"></label>
+        <label class="f-f"><input id="addF" type="checkbox"> Foil</label>
+        <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn primary" type="submit">Agregar</button></div>
+      </form>`, (m, close) => { m.querySelector("[data-no]").onclick = close; });
+  }
+  function modal(html, wire, cls) {
+    const ov = $("overlay");
+    ov.innerHTML = `<div class="modal-bg"><div class="modal ${cls || ""}" role="dialog" aria-modal="true">${html}</div></div>`;
+    const close = () => { ov.innerHTML = ""; };
+    ov.querySelector(".modal-bg").addEventListener("click", (e) => { if (e.target.classList.contains("modal-bg")) close(); });
+    wire(ov.querySelector(".modal"), close);
+    const first = ov.querySelector("[autofocus], input, textarea, button.primary, button");
+    if (first) first.focus();
+  }
+  function confirmBox(title, text, label, onYes) {
+    modal(`<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn danger solid" data-yes type="button">${esc(label)}</button></div>`,
+      (m, close) => { m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = () => { close(); onYes(); }; });
+  }
+  function askName(title, initial, label, onOk) {
+    modal(`<h3>${esc(title)}</h3><form data-f><input type="text" id="nameInput" value="${esc(initial)}" required aria-label="Nombre del mazo"></form>
+      <div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn primary" data-yes type="button">${esc(label)}</button></div>`,
+      (m, close) => {
+        const go = () => { const v = m.querySelector("#nameInput").value.trim(); if (v) { close(); onOk(v); } };
+        m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = go;
+        m.querySelector("[data-f]").onsubmit = (e) => { e.preventDefault(); go(); };
+      });
+  }
+  function cardModal(d, c) {
+    const m = meta(c.n);
+    const o = otherDecksIndex(d.id).get(c.n);
+    modal(`<div class="cardmodal">
+        <div class="cardside">${artHtml(c.n, "", c, true)}<button class="btn" data-m="img" type="button">Cambiar imagen</button></div>
+        <div class="fields">
+          <h3>${esc(c.n)}</h3>
+          ${m ? `<div class="tl">${esc(m.t)} ${costHtml(m.m)}</div>` : ""}
+          <div class="inline"><button type="button" class="btn verifybtn${c.ok ? " on" : ""}" data-m="verify">${icon("check")} ${c.ok ? "Verificada" : "Marcar como verificada"}</button>
+            <span class="status">Imagen y edición comparadas con la carta real</span></div>
+          <div class="inline"><span class="qty"><button type="button" data-m="dec" aria-label="Quitar una copia">−</button><span class="num" id="mq">${c.q}</span><button type="button" data-m="inc" aria-label="Agregar una copia">+</button></span>
+            <button type="button" class="foilbtn${c.f ? " on" : ""}" data-m="foil">${c.f ? "Foil" : "No foil"}</button></div>
+          <label class="f">Edición<input type="text" id="mE" value="${esc(c.e)}"></label>
+          <label class="f">Precio (USD)<input type="text" id="mP" inputmode="decimal" value="${c.p.toFixed(2)}"></label>
+          <label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>
+          ${o ? `<p class="status">También en: ${esc(o.join(", "))}</p>` : ""}
+          <div class="inline"><a href="${esc(scryUrl(c.n))}" target="_blank" rel="noopener">Ver en Scryfall ↗</a>
+            <a href="${esc(scgUrl(c.n))}" target="_blank" rel="noopener">Ver en StarCityGames ↗</a></div>
+          <div class="row2"><button class="btn danger" data-m="del" type="button">Quitar del mazo</button><button class="btn primary" data-m="ok" type="button" autofocus>Listo</button></div>
+        </div>
+      </div>`, (el, close) => {
+      const apply = () => {
+        c.e = el.querySelector("#mE").value.trim();
+        c.p = parseFloat(el.querySelector("#mP").value.replace(/[^0-9.]/g, "")) || 0;
+        const want = el.querySelector("#mC").checked;
+        if (want && !isCmd(d, c.n)) d.cmd.push(c.n);
+        if (!want) d.cmd = d.cmd.filter((x) => x !== c.n);
+      };
+      el.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-m]"); if (!b) return;
+        const a = b.dataset.m;
+        if (a === "inc") { c.q++; el.querySelector("#mq").textContent = c.q; }
+        if (a === "dec" && c.q > 1) { c.q--; el.querySelector("#mq").textContent = c.q; }
+        if (a === "foil") { c.f = !c.f; b.classList.toggle("on", c.f); b.textContent = c.f ? "Foil" : "No foil"; }
+        if (a === "verify") { if (c.ok) delete c.ok; else c.ok = true; apply(); close(); change(); }
+        if (a === "ok") { apply(); close(); change(); }
+        if (a === "img") { apply(); close(); change(); imageModal(d, c); }
+        if (a === "del") { close(); d.cards.splice(d.cards.indexOf(c), 1); d.cmd = d.cmd.filter((x) => x !== c.n); previewIdx = null; change(); toast(`${c.n} eliminada`); }
+      });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { apply(); close(); change(); } });
+    }, "wide");
+  }
+  function printsUrl(n) { return "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"') + "&unique=prints"; }
+  function imageModal(d, c) {
+    const sameName = () => S.decks.flatMap((x) => x.cards).filter((x) => x.n === c.n);
+    const copies = sameName().length;
+    modal(`<div class="imgmodal" id="imgModal">
+        <h3>Imagen de ${esc(c.n)}</h3>
+        <section><h4>Elegir otra impresión</h4><div class="prints" id="prints"><p class="status">Buscando impresiones en Scryfall…</p></div></section>
+        <section><h4>O usa tu propia imagen</h4>
+          <div class="pastezone" id="pasteZone" tabindex="0">Pega aquí una imagen con Ctrl+V o <button type="button" data-i="file">elige un archivo</button></div>
+          <input type="file" id="imgFile" accept="image/*" hidden>
+          <p class="status">En Scryfall: clic derecho sobre la imagen, «Copiar imagen», y pégala aquí. <a href="${esc(printsUrl(c.n))}" target="_blank" rel="noopener">Ver impresiones en Scryfall ↗</a></p>
+        </section>
+        ${copies > 1 ? `<label class="allrow"><input type="checkbox" id="allDecks"> Usar esta imagen en las ${copies} copias de esta carta en todos tus mazos</label>` : ""}
+        <div class="row2">${c.im ? `<button class="btn" data-i="reset" type="button">Restaurar imagen original</button>` : ""}<button class="btn" data-i="close" type="button">Cerrar</button></div>
+      </div>`, (el, close) => {
+      const targets = () => (el.querySelector("#allDecks") && el.querySelector("#allDecks").checked ? sameName() : [c]);
+      const setImg = (url, back) => {
+        targets().forEach((t) => { if (url) t.im = url; else delete t.im; if (back) t.imb = back; else delete t.imb; });
+        close(); change();
+        toast(url ? (localMode ? "Imagen cambiada" : "Imagen cambiada. Pulsa Guardar para conservarla.") : "Imagen original restaurada");
+      };
+      const zone = el.querySelector("#pasteZone");
+      const useBlob = (blob) => {
+        zone.textContent = "Procesando imagen…";
+        shrink(blob).then((small) => {
+          if (assetsApi) return assetsApi.upload(small).then((r) => "/_blob/" + r.id, () => toDataUrl(small));
+          return toDataUrl(small);
+        }).then(setImg, () => { zone.textContent = "No se pudo leer esa imagen. Prueba con un archivo JPG o PNG."; });
+      };
+      el.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-i], [data-print]"); if (!b) return;
+        if (b.dataset.print) return setImg(b.dataset.print, b.dataset.back);
+        if (b.dataset.i === "file") el.querySelector("#imgFile").click();
+        if (b.dataset.i === "reset") setImg(null);
+        if (b.dataset.i === "close") close();
+      });
+      el.querySelector("#imgFile").addEventListener("change", (e) => { if (e.target.files[0]) useBlob(e.target.files[0]); });
+      zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
+      zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+      zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) useBlob(f); });
+      const onPaste = (e) => {
+        if (!document.body.contains(el)) { document.removeEventListener("paste", onPaste); return; }
+        const items = [...(e.clipboardData ? e.clipboardData.items : [])];
+        const img = items.find((x) => x.type.startsWith("image/"));
+        if (img) { e.preventDefault(); useBlob(img.getAsFile()); return; }
+        const text = ((e.clipboardData && e.clipboardData.getData("text")) || "").trim();
+        if (/^https?:\/\//.test(text) && e.target.tagName !== "INPUT") {
+          e.preventDefault();
+          if (localMode) setImg(text);
+          else toast("Aquí no se pueden usar enlaces de imagen. Copia la imagen en sí (clic derecho, «Copiar imagen») y pégala.");
+        }
+      };
+      document.addEventListener("paste", onPaste);
+      zone.focus();
+      fetch("https://api.scryfall.com/cards/search?unique=prints&order=released&q=" + encodeURIComponent('!"' + c.n.split(" // ")[0] + '"'))
+        .then((r) => r.json()).then((res) => {
+          const prints = (res.data || []).map((p) => {
+            const iu = p.image_uris || ((p.card_faces || [])[0] || {}).image_uris || {};
+            return { small: iu.small, normal: iu.normal, back: backOf(p), set: p.set_name, num: p.collector_number };
+          }).filter((p) => p.normal);
+          if (!prints.length) throw new Error("none");
+          el.querySelector("#prints").innerHTML = prints.map((p) => `
+            <button type="button" class="pbtn${p.normal === c.im ? " on" : ""}" data-print="${esc(p.normal)}"${p.back ? ` data-back="${esc(p.back)}"` : ""} title="${esc(p.set)} #${esc(p.num)}">
+              <img class="art" src="${esc(p.small)}" alt="${esc(c.n)}, ${esc(p.set)}" loading="lazy"><b>${esc(p.set)}</b><span>#${esc(p.num)}</span>
+            </button>`).join("");
+        }).catch(() => {
+          el.querySelector("#prints").innerHTML = `<p class="status">Desde aquí no se puede consultar Scryfall. Abre las impresiones en Scryfall, copia la imagen que quieras y pégala abajo. <a href="${esc(printsUrl(c.n))}" target="_blank" rel="noopener">Ver impresiones en Scryfall ↗</a></p>`;
+        });
+    }, "wide");
+  }
+  // Card-sized JPEG so stored images stay small.
+  function shrink(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const im = new Image();
+      im.onload = () => {
+        const w = Math.min(488, im.naturalWidth), h = Math.round((im.naturalHeight * w) / im.naturalWidth);
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(im, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        cv.toBlob((b) => (b ? resolve(b) : reject(new Error("encode"))), "image/jpeg", 0.86);
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load")); };
+      im.src = url;
+    });
+  }
+  function toDataUrl(blob) {
+    return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob); });
+  }
+  // Moxfield import line: "1 Sol Ring (C16) 272 *F*". The collector number comes from the Scryfall
+  // printing we matched, and is only used when that printing is from the card's own edition.
+  const SETS = (() => { try { return JSON.parse($("set-codes").textContent) || {}; } catch (e) { return {}; } })();
+  function moxLine(c) {
+    const halves = c.n.split(" // ");
+    const name = halves.length === 2 && halves[0] === halves[1] ? halves[0] : c.n;
+    const code = SETS[c.e.toLowerCase()];
+    const m = meta(c.n);
+    let num = "";
+    if (code && m && m.u) {
+      const p = m.u.match(/\/card\/([^/]+)\/([^/]+)/);
+      if (p && p[1].toUpperCase() === code) num = " " + decodeURIComponent(p[2]);
+    }
+    return `${c.q} ${name}${code ? ` (${code})${num}` : ""}${c.f ? " *F*" : ""}`;
+  }
+  function toMoxfield(d) {
+    const cmd = d.cards.filter((c) => isCmd(d, c.n));
+    const rest = d.cards.filter((c) => !isCmd(d, c.n)).sort((a, b) => a.n.localeCompare(b.n));
+    return [...cmd, ...rest].map(moxLine).join("\n") + "\n";
+  }
+  function exportDeck(d) {
+    const base = d.name.replace(/[^\w\- ]+/g, "") || "mazo";
+    const formats = {
+      csv: { label: "CSV (Excel)", text: toCsv(d), file: base + ".csv", type: "text/csv",
+        help: "Mismo formato que tus archivos: columnas separadas por tabulador. Se abre en Excel." },
+      mox: { label: "Moxfield", text: toMoxfield(d), file: base + " (Moxfield).txt", type: "text/plain",
+        help: `En Moxfield: crea un mazo nuevo (formato Commander), pulsa «Import» y pega esta lista. ${d.cmd.length ? "El comandante va en la primera línea; si Moxfield no lo marca solo, márcalo como comandante en el mazo." : "Este mazo no tiene comandante marcado: elígelo después en Moxfield."}` },
+    };
+    let cur = "csv";
+    modal(`<h3>Exportar ${esc(d.name)}</h3>
+      <div class="seg" role="group">${Object.entries(formats).map(([k, f]) => `<button type="button" data-fmt="${k}" class="${k === cur ? "on" : ""}">${f.label}</button>`).join("")}</div>
+      <p class="status" id="fmtHelp"></p>
+      <textarea id="csvOut" readonly></textarea>
+      <div class="row2"><a class="btn" id="moxLink" href="https://moxfield.com/decks/personal" target="_blank" rel="noopener" hidden>Abrir Moxfield ↗</a><button class="btn" data-copy type="button">Copiar</button><button class="btn primary" data-dl type="button"></button><button class="btn" data-no type="button">Cerrar</button></div>`,
+      (m, close) => {
+        const show = () => {
+          const f = formats[cur];
+          m.querySelector("#csvOut").value = f.text;
+          m.querySelector("#fmtHelp").textContent = f.help;
+          m.querySelector("[data-dl]").textContent = "Descargar " + f.file;
+          m.querySelector("#moxLink").hidden = cur !== "mox";
+          m.querySelectorAll("[data-fmt]").forEach((b) => b.classList.toggle("on", b.dataset.fmt === cur));
+        };
+        show();
+        m.querySelectorAll("[data-fmt]").forEach((b) => (b.onclick = () => { cur = b.dataset.fmt; show(); }));
+        m.querySelector("[data-no]").onclick = close;
+        m.querySelector("[data-copy]").onclick = () => {
+          const ta = m.querySelector("#csvOut");
+          Promise.resolve().then(() => navigator.clipboard.writeText(formats[cur].text)).then(() => toast("Copiado al portapapeles"),
+            () => { ta.focus(); ta.select(); toast("Texto seleccionado: usa Ctrl+C para copiarlo"); });
+        };
+        m.querySelector("[data-dl]").onclick = () => download(formats[cur].file, formats[cur].text, formats[cur].type);
+      });
+  }
+  // ---------- Backup: every deck in one file, to keep elsewhere or move to another computer ----------
+  const fmtDate = (iso) => { const t = new Date(iso); return isNaN(t) ? "" : t.toLocaleString("es", { dateStyle: "medium", timeStyle: "short" }); };
+  const backupPayload = () => ({ app: "jedhrec", version: 1, exportedAt: new Date().toISOString(), decks: S.decks, meta: S.meta });
+  function markFileSaved() { lsSet(BACKUP_KEY, new Date().toISOString()); lsDel(FILE_DIRTY_KEY); renderStatus(); }
+  // The file Guardar writes to, kept in IndexedDB so later saves overwrite it without asking again (Chrome/Edge).
+  function handleStore(val) {
+    return new Promise((resolve, reject) => {
+      const r = indexedDB.open("jedhrec", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onerror = () => reject(r.error);
+      r.onsuccess = () => {
+        const st = r.result.transaction("kv", val ? "readwrite" : "readonly").objectStore("kv");
+        const q = val ? st.put(val, "saveFile") : st.get("saveFile");
+        q.onsuccess = () => resolve(q.result); q.onerror = () => reject(q.error);
+      };
+    });
+  }
+  if (localMode && window.showSaveFilePicker) handleStore().then((h) => { if (h) { fileHandle = h; renderStatus(); } }, () => {});
+  // Local Guardar: write every deck to a backup file. Without the File System Access API, download it instead.
+  async function saveToFile() {
+    const text = JSON.stringify(backupPayload());
+    if (!window.showSaveFilePicker) { download("jedhrec-respaldo.json", text, "application/json"); markFileSaved(); return; }
+    try {
+      if (fileHandle && (await fileHandle.requestPermission({ mode: "readwrite" })) !== "granted") fileHandle = null;
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({ suggestedName: "jedhrec-respaldo.json", types: [{ description: "Respaldo de Jedhrec", accept: { "application/json": [".json"] } }] });
+        handleStore(fileHandle).catch(() => {});
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(text); await w.close();
+      markFileSaved();
+      toast("Guardado en " + fileHandle.name);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      fileHandle = null;
+      toast("No se pudo escribir el archivo. Se descargará una copia.");
+      download("jedhrec-respaldo.json", text, "application/json"); markFileSaved();
+    }
+  }
+  function backupModal() {
+    const last = lsGet(BACKUP_KEY);
+    const n = S.decks.length, cards = S.decks.reduce((a, d) => a + count(d), 0);
+    modal(`<h3>Respaldo</h3>
+      <p>Descarga un archivo con tus ${n} mazos (${cards} cartas): comandantes, ediciones, precios, foils e imágenes cambiadas. Guárdalo donde quieras (USB, nube, correo) y restáuralo aquí en cualquier computadora o navegador.</p>
+      <p class="status">${last ? "Último respaldo descargado: " + esc(fmtDate(last)) : "Aún no has descargado ningún respaldo."}</p>
+      <input type="file" id="backupFile" accept=".json,application/json" hidden>
+      <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn" data-restore type="button">Restaurar desde archivo…</button><button class="btn primary" data-dl type="button">Descargar respaldo</button></div>`,
+      (m, close) => {
+        m.querySelector("[data-no]").onclick = close;
+        m.querySelector("[data-dl]").onclick = () => {
+          const now = new Date();
+          const day = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+          download(`jedhrec-respaldo-${day}.json`, JSON.stringify(backupPayload()), "application/json");
+          markFileSaved();
+          close();
+        };
+        m.querySelector("[data-restore]").onclick = () => m.querySelector("#backupFile").click();
+        m.querySelector("#backupFile").onchange = (e) => { const f = e.target.files[0]; if (f) { close(); restoreBackup(f); } };
+      });
+  }
+  function restoreBackup(file) {
+    file.text().then((text) => {
+      let b;
+      try { b = JSON.parse(text); } catch (e) { b = null; }
+      if (!b || b.app !== "jedhrec" || !Array.isArray(b.decks)) { toast("Ese archivo no es un respaldo de Jedhrec."); return; }
+      const when = fmtDate(b.exportedAt);
+      confirmBox("Restaurar respaldo", `Se reemplazarán tus ${S.decks.length} mazos por los ${b.decks.length} del respaldo${when ? " del " + when : ""}.`, "Restaurar", () => {
+        S.decks = b.decks;
+        S.decks.forEach((d) => { if (!d.cmd) d.cmd = d.commander ? [d.commander] : []; delete d.commander; });
+        S.meta = Object.assign(S.meta || {}, b.meta || {});
+        ui.deck = null; ui.filter = ""; $("q").value = "";
+        change(); lookupMissing();
+        toast(`Respaldo restaurado: ${b.decks.length} mazos` + (localMode ? "" : ". Pulsa Guardar para conservarlo."));
+      });
+    }, () => toast("No se pudo leer ese archivo."));
+  }
+  function download(filename, text, type) {
+    type = type || "text/csv";
+    if (downloadsApi) {
+      downloadsApi.save({ filename, data: new Blob([text], { type }) }).then(() => toast("Archivo guardado"),
+        (e) => { if (e && e.code !== "declined") toast("No se pudo descargar aquí. Usa Copiar."); });
+      return;
+    }
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type }));
+      a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast("No se pudo descargar aquí. Usa Copiar."); }
+  }
+
+  // ---------- Save ----------
+  function save() {
+    if (localMode) return saveToFile();
+    if (!artifactApi || !dirty) return;
+    const data = JSON.parse(JSON.stringify(S));
+    data.decks.forEach((d) => delete d.localFilter);
+    data.savedAt = new Date().toISOString();
+    $("saveBtn").disabled = true; $("status").textContent = "Guardando…";
+    artifactApi.publish({ "decks.json": { content: JSON.stringify(data), contentType: "application/json" } }).then(() => {
+      stored = { savedAt: data.savedAt }; S.savedAt = data.savedAt;
+      lsDel(DRAFT_KEY); dirty = false; $("saveBtn").disabled = false; renderStatus(); toast("Guardado");
+    }, (e) => {
+      $("saveBtn").disabled = false;
+      const code = e && e.code;
+      if (code === "conflict") return;
+      if (code === "not_writer" || code === "not_granted" || code === "capability_disabled") { readOnly = true; canPublish = false; renderStatus(); return; }
+      toast("No se pudo guardar. Tus cambios siguen en este navegador; intenta de nuevo en un momento.");
+      renderStatus();
+    });
+  }
+
+  // ---------- Events ----------
+  const app = $("app");
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll("details.dd[open]").forEach((el) => { if (!el.contains(e.target)) el.open = false; });
+  });
+  app.addEventListener("click", (e) => {
+    const fl = e.target.closest("[data-flip]");
+    if (fl) { fl.closest(".flip").classList.toggle("flipped"); return; }
+    const okb = e.target.closest("[data-ok]");
+    if (okb) {
+      const c = deckOf(ui.deck).cards[+okb.dataset.ok];
+      if (c.ok) delete c.ok; else c.ok = true;
+      change(); return;
+    }
+    if (e.target.closest("#hideOkBtn")) { ui.hideOk = !ui.hideOk; render(); return; }
+    const t = e.target.closest("button, th.sort, [data-card]");
+    if (!t) return;
+    if (t.id === "dmBtn") { menuOpen = !menuOpen; renderSide(); return; }
+    if (t.dataset.deck) { menuOpen = false; ui.deck = t.dataset.deck; ui.filter = ""; $("q").value = ""; previewIdx = null; render(); return; }
+    if (t.id === "homeBtn") { menuOpen = false; ui.deck = null; ui.filter = ""; $("q").value = ""; render(); return; }
+    if (t.dataset.goto) { ui.deck = t.dataset.goto; ui.filter = ""; $("q").value = ""; previewIdx = null; render(); return; }
+    if (t.dataset.view) { ui.view = t.dataset.view; render(); return; }
+    if (t.dataset.group) { ui.group = t.dataset.group; render(); return; }
+    if (t.dataset.sort) { ui.sort = t.dataset.sort; render(); return; }
+    if (t.dataset.hsort) { ui.hsort = t.dataset.hsort; render(); return; }
+    if (t.dataset.tsort) { ui.dir = ui.tsort === t.dataset.tsort ? -ui.dir : 1; ui.tsort = t.dataset.tsort; render(); return; }
+    if (t.dataset.collapse != null) { const k = t.dataset.collapse; if (ui.collapsed[k]) delete ui.collapsed[k]; else ui.collapsed[k] = true; render(); return; }
+    const d = deckOf(ui.deck);
+    if (t.id === "importBtn") return $("file").click();
+    if (t.id === "backupBtn") return backupModal();
+    if (t.id === "saveBtn") return save();
+    if (t.id === "newBtn") return askName("Nuevo mazo", "", "Crear", (name) => { const nd = { id: uid(), name, cmd: [], cards: [] }; S.decks.push(nd); ui.deck = nd.id; ui.filter = ""; $("q").value = ""; change(); });
+    if (!d) return;
+    if (t.dataset.card != null) { const c = d.cards[+t.dataset.card]; if (c) cardModal(d, c); return; }
+    if (t.id === "exportBtn") return exportDeck(d);
+    if (t.id === "addCardBtn") return addCardModal();
+    if (t.id === "renameBtn") return askName("Renombrar mazo", d.name, "Renombrar", (name) => { d.name = name; change(); });
+    if (t.id === "dupBtn") return askName("Duplicar mazo", d.name + " (copia)", "Duplicar", (name) => { const nd = JSON.parse(JSON.stringify(d)); nd.id = uid(); nd.name = name; S.decks.push(nd); ui.deck = nd.id; change(); });
+    if (t.id === "delDeckBtn") return confirmBox("Eliminar mazo", `Se eliminará “${d.name}” con sus ${count(d)} cartas.`, "Eliminar", () => { S.decks = S.decks.filter((x) => x !== d); ui.deck = null; change(); });
+    const row = t.closest("tr[data-i]");
+    if (!row) return;
+    const c = d.cards[+row.dataset.i];
+    const act = t.dataset.act;
+    if (act === "inc") { c.q++; change(); }
+    else if (act === "dec") { if (c.q > 1) { c.q--; change(); } else confirmBox("Quitar carta", `¿Quitar ${c.n} del mazo?`, "Quitar", () => { d.cards.splice(d.cards.indexOf(c), 1); change(); }); }
+    else if (act === "foil") { c.f = !c.f; change(); }
+    else if (act === "del") { d.cards.splice(d.cards.indexOf(c), 1); d.cmd = d.cmd.filter((x) => x !== c.n); change(); toast(`${c.n} eliminada`); }
+  });
+  app.addEventListener("mouseover", (e) => {
+    const r = e.target.closest(".row[data-card]");
+    const p = $("preview");
+    if (!r || !p || +r.dataset.card === previewIdx) return;
+    previewIdx = +r.dataset.card;
+    p.innerHTML = previewHtml(deckOf(ui.deck));
+    app.querySelectorAll(".row.sel").forEach((x) => x.classList.remove("sel"));
+    r.classList.add("sel");
+  });
+  app.addEventListener("keydown", (e) => {
+    const r = e.target.closest && e.target.closest("[data-ok], [data-flip], .row[data-card]");
+    if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); r.click(); }
+  });
+  app.addEventListener("change", (e) => {
+    const t = e.target, d = deckOf(ui.deck);
+    if (t.id === "file") { importFiles(t.files); t.value = ""; return; }
+    if (!d) return;
+    const row = t.closest("tr[data-i]");
+    if (row && t.dataset.field) {
+      const c = d.cards[+row.dataset.i];
+      if (t.dataset.field === "p") c.p = parseFloat(t.value.replace(/[^0-9.]/g, "")) || 0;
+      else c.e = t.value.trim();
+      change();
+    }
+  });
+  app.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t.id === "q") { ui.filter = t.value; render(); }
+    if (t.id === "deckFilter") {
+      const d = deckOf(ui.deck); d.localFilter = t.value;
+      const pos = t.selectionStart; render();
+      const nf = $("deckFilter"); nf.focus(); nf.setSelectionRange(pos, pos);
+    }
+  });
+  app.addEventListener("submit", (e) => {
+    if (e.target.id !== "addForm") return;
+    e.preventDefault();
+    const d = deckOf(ui.deck); if (!d) return;
+    const name = $("addN").value.trim(); if (!name) return;
+    const card = { q: Math.max(1, parseInt($("addQ").value, 10) || 1), n: name, e: $("addE").value.trim(), f: $("addF").checked, p: parseFloat($("addP").value.replace(/[^0-9.]/g, "")) || 0 };
+    const same = d.cards.find((c) => c.n.toLowerCase() === name.toLowerCase() && c.e === card.e && c.f === card.f);
+    if (same) same.q += card.q; else d.cards.push(card);
+    change(); lookupMissing();
+    toast(`${name} agregada a ${d.name}`);
+    $("addN").value = ""; $("addN").focus();
+  });
+  let dragDepth = 0;
+  window.addEventListener("dragenter", (e) => { if (![...(e.dataTransfer.types || [])].includes("Files")) return; e.preventDefault(); if (dragDepth++ === 0) { const x = document.createElement("div"); x.className = "drop"; x.id = "dropzone"; x.textContent = "Suelta tus CSV para importarlos"; document.body.appendChild(x); } });
+  window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); } });
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); if (e.dataTransfer.files.length && !$("imgModal")) importFiles(e.dataTransfer.files); });
+  document.addEventListener("click", (e) => {
+    // The menu re-renders on click, so a click that started inside it may come from a node that is gone now.
+    if (menuOpen && e.target.isConnected && !$("decklist").contains(e.target)) { menuOpen = false; renderSide(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menuOpen) { menuOpen = false; renderSide(); $("dmBtn").focus(); }
+    if (e.key === "Escape") $("overlay").innerHTML = "";
+    if ((e.ctrlKey || e.metaKey) && e.key === "s" && (localMode || (canPublish && dirty))) { e.preventDefault(); save(); }
+  });
+
+  // Theme: light or dark, remembered per browser. Without a saved choice, start from the system's.
+  const THEME_KEY = "boveda-mazos-theme";
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    const b = $("themeBtn"), label = t === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro";
+    b.innerHTML = icon(t === "dark" ? "sun" : "moon");
+    b.title = label; b.setAttribute("aria-label", label);
+  }
+  let theme = lsGet(THEME_KEY);
+  if (theme !== "dark" && theme !== "light") {
+    const host = document.documentElement.getAttribute("data-theme");
+    theme = host === "dark" || host === "light" ? host
+      : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  applyTheme(theme);
+  $("themeBtn").addEventListener("click", () => {
+    theme = theme === "dark" ? "light" : "dark";
+    lsSet(THEME_KEY, theme);
+    applyTheme(theme);
+  });
+
+  // Keep the sticky card preview just below the (now taller) top bar.
+  const topBar = document.querySelector(".top");
+  const syncTop = () => document.documentElement.style.setProperty("--top-h", topBar.offsetHeight + "px");
+  if (window.ResizeObserver) new ResizeObserver(syncTop).observe(topBar);
+  syncTop();
+
+  // ---------- Start ----------
+  function start(data) {
+    stored = { savedAt: data.savedAt };
+    S = data;
+    const draft = lsGet(DRAFT_KEY);
+    if (draft && draft.base === data.savedAt && draft.data) { S = draft.data; dirty = true; }
+    S.meta = S.meta || {};
+    // A draft keeps its own copy of the card data; bring in back faces added to the page after the draft was made.
+    for (const n in data.meta || {}) if (data.meta[n].b && S.meta[n] && !S.meta[n].b) S.meta[n].b = data.meta[n].b;
+    S.decks.forEach((d) => { if (!d.cmd) d.cmd = d.commander ? [d.commander] : []; delete d.commander; });
+    const savedUi = lsGet(UI_KEY);
+    if (savedUi) ui = Object.assign(ui, savedUi, { filter: "" });
+    ui.deck = null; // always open on the main page
+    render();
+    if (localMode) lookupMissing();
+  }
+  const embedded = JSON.parse($("deck-data").textContent);
+  if (embedded) start(embedded);
+  else fetch("decks.json", { cache: "no-store" }).then((r) => r.json()).then(start, () => {
+    $("view").innerHTML = `<div class="deckhead empty">No se pudieron cargar los mazos. Recarga la página.</div>`;
+  });
+
+  if (!localMode) {
+    window.claude.use("artifact").then((a) => { if (a) { artifactApi = a; canPublish = true; } else readOnly = true; if (S) renderStatus(); });
+    window.claude.use("downloads").then((dl) => { downloadsApi = dl; });
+    window.claude.use("assets").then((a) => { assetsApi = a; });
+  }
+})();
+</script>
+
+</body></html>

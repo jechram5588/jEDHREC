@@ -1,0 +1,11 @@
+# Personal data: deck lists, the page with your decks embedded, and backups
+privado/
+*.csv
+jedhrec-respaldo*.json
+
+# Generated from your CSVs (card data and images) and the published build
+herramientas/sf/meta.json
+herramientas/sf/img/
+herramientas/site/
+
+__pycache__/

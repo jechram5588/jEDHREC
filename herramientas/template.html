@@ -1,0 +1,1387 @@
+<title>Jedhrec</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Alegreya+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style id="css">
+/* Layout: barra superior + mazos a la izquierda + vista previa fija de la carta + grupos por tipo en columnas (lista) o cuadrícula de imágenes */
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --ink: #1b2430; --muted: #5d6b7c; --line: #d5dce4; --hover: #e6edf3;
+  --accent: #1f6f8b; --accent-ink: #ffffff; --accent-soft: #dcecf2;
+  --foil: #a8741a; --foil-soft: #f6ead2; --danger: #b3261e; --danger-soft: #f8dedc; --ok: #2e7d4f;
+  --mW: #f6f1d0; --mU: #b3d4ea; --mB: #b9b0ab; --mR: #ec9f82; --mG: #9fc79a; --mC: #d3cdcb; --m-ink: #1b1b1b;
+  --f-display: "Alegreya SC", Georgia, serif;
+  --f-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12171d; --panel: #1a2129; --ink: #e3e9ef; --muted: #93a1b1; --line: #2c3743; --hover: #222b35;
+  --accent: #5fb3d0; --accent-ink: #0b1a21; --accent-soft: #1d3542;
+  --foil: #e0b45e; --foil-soft: #3a2f1a; --danger: #f08a80; --danger-soft: #3d1f1d; --ok: #74c69a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12171d; --panel: #1a2129; --ink: #e3e9ef; --muted: #93a1b1; --line: #2c3743; --hover: #222b35;
+  --accent: #5fb3d0; --accent-ink: #0b1a21; --accent-soft: #1d3542;
+  --foil: #e0b45e; --foil-soft: #3a2f1a; --danger: #f08a80; --danger-soft: #3d1f1d; --ok: #74c69a; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 0.86em; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.brand { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; letter-spacing: 0.02em; margin: 0; white-space: nowrap; }
+.brand button { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
+.brand button:hover { color: var(--accent); }
+.homehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
+.homehead h2 { margin: 0; font-family: var(--f-display); font-size: 1.6rem; }
+.homehead .hsort { margin-left: auto; align-self: center; }
+.homehead .dd .menu { left: auto; right: 0; min-width: 220px; }
+.decks { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr)); gap: 12px; }
+.dcard { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; align-items: start; text-align: left; font: inherit; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+.dcard:hover { border-color: var(--accent); }
+.dcard .thumbs { display: grid; gap: 4px; }
+.dcard .thumbs .art { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
+.dcard .info { display: grid; gap: 3px; min-width: 0; }
+.dcard h3 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; line-height: 1.15; }
+.dcard .cmdr { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dcard .cmdr small { color: var(--muted); font-size: 0.85rem; }
+.dcard .curve { margin-top: 2px; }
+.dcard .bars { height: 88px; gap: 4px; }
+.dcard .bar { width: 24px; }
+.search { flex: 1 1 220px; min-width: 0; }
+.search input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 6px 12px; border-radius: 6px; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.btn.danger { color: var(--danger); }
+.btn.danger.solid { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.status { font-size: 0.85rem; color: var(--muted); }
+.status.dirty { color: var(--foil); font-weight: 700; }
+
+.layout { padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.decknav { flex-basis: 100%; display: flex; align-items: center; gap: 8px 16px; min-width: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+.deckmenu { position: relative; flex: 0 1 auto; min-width: 0; max-width: 280px; }
+.mtot { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 10px; }
+.dmbtn { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; border: 1px solid var(--line); background: var(--bg);
+  border-radius: 6px; padding: 5px 12px; }
+.dmbtn:hover, .dmbtn[aria-expanded="true"] { border-color: var(--accent); }
+.dmbtn .lbl { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.dmbtn b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dmbtn .caret { color: var(--muted); font-size: 0.8rem; }
+.mega { position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; width: min(940px, calc(100vw - 32px)); max-height: 75vh; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+  padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 28px; }
+.mega h3 { font-family: var(--f-display); font-size: 1.1rem; margin: 0 0 6px; }
+.mcol { display: grid; gap: 2px; align-content: start; }
+.mitem { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; padding: 5px 6px; border-radius: 6px; text-align: left; }
+.mitem:hover { background: var(--hover); }
+.mitem.on { background: var(--accent-soft); }
+.mitem.on b { color: var(--accent); }
+.mitem span { display: grid; min-width: 0; line-height: 1.25; }
+.mitem b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mitem small { color: var(--muted); font-size: 0.76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mega .empty { grid-column: 1 / -1; padding: 8px; }
+.pips { display: inline-flex; gap: 2px; flex: none; }
+.pip { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-family: var(--f-mono); font-size: 10px; font-weight: 700;
+  color: var(--m-ink); background: var(--mC); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
+img.sym { background: none; box-shadow: none; border-radius: 0; display: inline-block; vertical-align: middle; }
+img.ms.sym { width: 17px; height: 17px; }
+img.pip.sym { width: 19px; height: 19px; }
+.pip.W { background: var(--mW); } .pip.U { background: var(--mU); } .pip.B { background: var(--mB); } .pip.R { background: var(--mR); } .pip.G { background: var(--mG); }
+.totals { flex: none; font-size: 0.8rem; color: var(--muted); display: flex; gap: 14px; }
+.totals div { display: flex; gap: 5px; }
+
+.view { min-width: 0; display: grid; gap: 14px; }
+.deckhead { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 12px; }
+.titlerow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.deckname { font-family: var(--f-display); font-size: 1.8rem; font-weight: 700; margin: 0; text-wrap: balance; }
+.cmdr { color: var(--muted); }
+.cmdr b { color: var(--ink); font-weight: 500; }
+.headgrid { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: end; justify-content: space-between; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.stat { display: grid; }
+.stat small, .curve small { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stat strong { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+.curve { display: grid; gap: 4px; }
+.bars { display: flex; align-items: flex-end; gap: 4px; height: 88px; }
+.bar { width: 22px; display: grid; justify-items: center; align-content: end; gap: 2px; height: 100%; }
+.bar i { display: block; width: 100%; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar em { font-style: normal; font-size: 0.75rem; color: var(--muted); font-family: var(--f-mono); }
+.bar b { font-size: 0.75rem; font-family: var(--f-mono); font-weight: 400; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.pill.ok { background: var(--accent-soft); color: var(--ok); }
+.pill.warn { background: var(--danger-soft); color: var(--danger); }
+.deckhead.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 10px 14px; }
+.cmdthumbs { display: flex; gap: 4px; flex: none; }
+.cmdthumb { width: 84px; border: 0; padding: 0; background: transparent; border-radius: 4px; display: block; }
+.cmdthumb .art { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
+.cmdthumb.none { aspect-ratio: 488 / 680; display: grid; place-items: center; border: 1px dashed var(--line); color: var(--muted); font-size: 1.4rem; }
+.dh-main { flex: 1 1 260px; min-width: 0; display: grid; gap: 2px; }
+.compact .titlerow { gap: 4px 10px; align-items: center; }
+.compact .deckname { font-size: 1.45rem; line-height: 1.15; }
+.compact .cmdr { font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statline { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 0.85rem; color: var(--muted); }
+.statline b { color: var(--ink); font-weight: 600; }
+.compact .bars { height: 88px; gap: 4px; }
+.compact .bar { width: 24px; }
+.dh-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.statline.types { margin-top: 2px; }
+.more { position: relative; }
+.more summary { list-style: none; padding: 6px 12px; font-weight: 700; line-height: 1.2; }
+.more summary::-webkit-details-marker { display: none; }
+.more .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 6; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); display: grid; min-width: 170px; padding: 4px; }
+.more .menu button { border: 0; background: transparent; text-align: left; padding: 7px 10px; border-radius: 5px; }
+.more .menu button:hover { background: var(--hover); }
+.more .menu button.danger { color: var(--danger); }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.deckhead .toolbar { flex: 1 1 100%; gap: 8px 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.deckhead .toolbar #deckFilter { flex: 0 1 300px; margin-left: auto; }
+.toolbar input { flex: 1 1 160px; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: transparent; padding: 5px 11px; font-size: 0.9rem; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -3px; }
+.ic.chev { width: 14px; height: 14px; color: var(--muted); }
+.ibtn { display: inline-grid; place-items: center; padding-left: 9px; padding-right: 9px; }
+.ibtn .ic { width: 18px; height: 18px; }
+.ibtn:hover { background: var(--accent); color: var(--accent-ink); }
+.ibtn.add { border-color: var(--accent); color: var(--accent); }
+.ibtn.add:hover { color: var(--accent-ink); }
+.ibtn.danger { border-color: var(--danger); }
+.ibtn.danger:hover { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+#themeBtn { display: inline-grid; place-items: center; padding-left: 9px; padding-right: 9px; }
+#themeBtn .ic { width: 18px; height: 18px; }
+.dd summary { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.dd summary > .ic:first-child { color: var(--accent); }
+.dd .menu button { display: flex; align-items: center; gap: 8px; }
+.dd .ddk { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.dd .menu { left: 0; right: auto; min-width: 150px; }
+.dd .menu button.on { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.addform { display: grid; grid-template-columns: 90px minmax(0, 1fr) 110px; gap: 12px; }
+.addform label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); }
+.addform input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 0; width: 100%; color: var(--ink); font-size: 0.95rem; }
+.addform .f-n { grid-column: 2 / 4; }
+.addform .f-e { grid-column: 1 / 3; }
+.addform .f-f { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.95rem; grid-column: 1 / 4; }
+.addform .f-f input { width: auto; }
+.addform .row2 { grid-column: 1 / 4; }
+
+.board { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; align-items: start; }
+.board.nopreview { grid-template-columns: minmax(0, 1fr); }
+.preview { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--top-h, 120px) + 12px); display: grid; gap: 8px; }
+.preview .art { width: 100%; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+.preview .pname { font-weight: 700; }
+.preview .pmeta { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+
+.art { display: block; width: 100%; max-width: 100%; aspect-ratio: 488 / 680; border-radius: 4.6% / 3.4%; background-color: var(--line);
+  background-repeat: no-repeat; object-fit: cover; overflow: hidden; }
+.art.ph { display: grid; align-content: center; justify-items: center; gap: 6px; padding: 10%; text-align: center; color: var(--muted);
+  background: linear-gradient(160deg, var(--panel), var(--hover)); border: 1px solid var(--line); font-size: 0.85rem; }
+.art.ph b { color: var(--ink); font-size: 0.95rem; }
+
+.groups { columns: 300px; column-gap: 28px; }
+.group { break-inside: avoid; margin-bottom: 18px; display: block; }
+.ghead { display: flex; align-items: baseline; gap: 6px; width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  padding: 4px 2px 6px; text-align: left; font-weight: 700; font-size: 1rem; }
+.ghead .num { color: var(--muted); font-weight: 400; }
+.ghead .caret { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
+.ghead .gval { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
+.okbtn { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel);
+  color: var(--muted); cursor: pointer; opacity: 0.55; }
+.okbtn .ic { width: 13px; height: 13px; stroke-width: 3; }
+.okbtn:hover { opacity: 1; border-color: var(--ok); color: var(--ok); }
+.okbtn.on { opacity: 1; background: var(--ok); border-color: var(--ok); color: var(--panel); }
+.gcard .okbtn { position: absolute; top: -7px; right: -7px; z-index: 3; width: 28px; height: 28px; opacity: 0.85; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.gcard .okbtn .ic { width: 15px; height: 15px; }
+#hideOkBtn { display: inline-flex; align-items: center; gap: 6px; }
+#hideOkBtn[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); font-weight: 700; }
+#hideOkBtn .num { color: var(--muted); font-weight: 400; }
+.verifybtn.on { background: var(--ok); border-color: var(--ok); color: var(--panel); font-weight: 700; }
+tr.is-ok .linkbtn { color: var(--ok); }
+.row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 22px; gap: 8px; align-items: center; padding: 5px 4px;
+  border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 4px; }
+.row:hover, .row.sel { background: var(--hover); }
+.row .q { color: var(--muted); text-align: right; }
+.row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .foilmark { color: var(--foil); font-size: 0.75rem; font-weight: 700; margin-left: 4px; }
+
+.cost { display: inline-flex; gap: 2px; align-items: center; flex-wrap: nowrap; }
+.ms { width: 17px; height: 17px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10.5px; font-weight: 700;
+  font-family: var(--f-mono); color: var(--m-ink); background: var(--mC); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); line-height: 1; }
+.ms.W { background: var(--mW); } .ms.U { background: var(--mU); } .ms.B { background: var(--mB); } .ms.R { background: var(--mR); } .ms.G { background: var(--mG); }
+
+.ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.gsec { display: grid; gap: 10px; margin-bottom: 8px; }
+.gcard { position: relative; border: 0; padding: 0; background: transparent; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
+.gcard:hover .art { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3); }
+.gcard .art { transition: transform .15s, box-shadow .15s; }
+.flip { position: relative; display: block; perspective: 1400px; }
+.flip .faces { display: grid; transform-style: preserve-3d; transition: transform .5s; }
+.flip .faces > .art { grid-area: 1 / 1; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flip .faces > .art.back, .gcard:hover .flip .faces > .art.back { transform: rotateY(180deg); }
+.flip.flipped .faces { transform: rotateY(180deg); }
+.flipbtn { position: absolute; right: 7%; top: 41%; z-index: 2; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(15, 20, 25, 0.72); color: #fff; border: 1px solid rgba(255, 255, 255, 0.5); cursor: pointer; }
+.flipbtn:hover { background: rgba(15, 20, 25, 0.9); }
+.flipbtn .ic { width: 18px; height: 18px; }
+.badge { position: absolute; top: 8%; left: 6%; background: var(--ink); color: var(--panel); border-radius: 999px; padding: 0 8px; font-size: 0.8rem; font-weight: 700; font-family: var(--f-mono); }
+.badge.foil { left: auto; right: 6%; background: var(--foil); color: var(--panel); font-family: var(--f-body); }
+.gcard .cap { font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.gcard .cap { min-width: 0; }
+.gcard .cap span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.gcard .cap span:last-child { flex: none; }
+
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 700;
+  padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap; user-select: none; }
+th.sort { cursor: pointer; }
+th.sort:hover { color: var(--ink); }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+tr.is-cmdr td { background: var(--accent-soft); }
+td.r, th.r { text-align: right; }
+td.type { color: var(--muted); font-size: 0.85rem; }
+.qty { display: inline-flex; align-items: center; gap: 2px; }
+.qty button { width: 26px; height: 26px; border: 1px solid var(--line); background: var(--bg); border-radius: 4px; line-height: 1; padding: 0; }
+.qty span { min-width: 26px; text-align: center; }
+.linkbtn { border: 0; background: transparent; padding: 0; text-align: left; font-weight: 500; }
+.linkbtn:hover { color: var(--accent); text-decoration: underline; }
+.tag { font-size: 0.72rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px; white-space: nowrap; }
+.tag.c { color: var(--accent); border-color: var(--accent); }
+.edit { border: 1px solid transparent; background: transparent; border-radius: 4px; padding: 3px 5px; width: 100%; min-width: 0; }
+.edit:hover, .edit:focus { border-color: var(--line); background: var(--bg); }
+.edit.price { width: 80px; text-align: right; font-family: var(--f-mono); font-size: 0.86em; }
+.foilbtn { border: 1px solid var(--line); background: transparent; border-radius: 999px; font-size: 0.75rem; padding: 1px 9px; color: var(--muted); }
+.foilbtn.on { background: var(--foil-soft); color: var(--foil); border-color: var(--foil); font-weight: 700; }
+.x { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; }
+.x:hover { color: var(--danger); background: var(--danger-soft); }
+.empty { padding: 24px; text-align: center; color: var(--muted); }
+
+.results { display: grid; gap: 10px; }
+.result { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
+.result h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.drop { border: 2px dashed var(--accent); background: var(--accent-soft); color: var(--accent); position: fixed; inset: 12px; z-index: 30;
+  border-radius: 12px; display: grid; place-items: center; font-family: var(--f-display); font-size: 1.6rem; pointer-events: none; }
+.modal-bg { position: fixed; inset: 0; z-index: 40; background: rgba(10, 15, 20, 0.55); display: grid; place-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px; }
+.modal { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; width: min(560px, 100%); display: grid; gap: 12px; max-height: 92vh; overflow: auto; }
+.modal.wide { width: min(720px, 100%); }
+.modal h3 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; }
+.modal p { margin: 0; }
+.modal textarea { width: 100%; min-height: 220px; font-family: var(--f-mono); font-size: 0.8rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; color: var(--ink); }
+.modal input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.modal .row2 { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.cardmodal { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 18px; }
+.cardmodal .fields { display: grid; gap: 10px; align-content: start; }
+.cardmodal .tl { color: var(--muted); font-size: 0.9rem; }
+.cardmodal .f { display: grid; gap: 3px; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.cardmodal .f input { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--ink); }
+.cardmodal .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cardmodal a { color: var(--accent); }
+.imgmodal { display: grid; gap: 14px; }
+.imgmodal h4 { margin: 0 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.imgmodal section { display: grid; gap: 6px; }
+.imgmodal a { color: var(--accent); }
+.imgmodal .allrow { display: flex; gap: 6px; align-items: center; }
+.prints { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; max-height: 46vh; overflow-y: auto; padding: 2px; }
+.pbtn { border: 2px solid transparent; background: transparent; padding: 2px; border-radius: 8px; display: grid; gap: 3px; text-align: left; font-size: 0.75rem; color: var(--muted); min-width: 0; }
+.pbtn:hover { border-color: var(--accent); }
+.pbtn.on { border-color: var(--foil); }
+.pbtn b { color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pastezone { border: 2px dashed var(--line); border-radius: 8px; padding: 16px; text-align: center; color: var(--muted); }
+.pastezone:focus, .pastezone.over { border-color: var(--accent); color: var(--accent); outline: none; }
+.pastezone button { border: 0; background: transparent; color: var(--accent); text-decoration: underline; padding: 0; }
+.cardside { display: grid; gap: 8px; align-content: start; }
+.toast { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--panel); padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; max-width: calc(100% - 32px); }
+
+@media (max-width: 1150px) { .board { grid-template-columns: minmax(0, 1fr); } .preview { display: none; } }
+@media (max-width: 760px) {
+  .deckmenu { max-width: none; flex: 1 1 auto; }
+  .deckname { font-size: 1.45rem; }
+  .ggrid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+  .cardmodal { grid-template-columns: minmax(0, 1fr); }
+  .cardmodal .art { max-width: 240px; margin: 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .gcard .art, .flip .faces { transition: none; } .gcard:hover .art { transform: none; } }
+@media (prefers-reduced-motion: no-preference) { .deckbtn, .btn, .chip { transition: border-color .15s, background .15s; } }
+</style>
+<div id="app">
+  <header class="top">
+    <h1 class="brand"><button type="button" id="homeBtn" title="Ver todos los mazos">Jedhrec</button></h1>
+    <div class="deckmenu" id="decklist"></div>
+    <div class="search"><input id="q" type="search" placeholder="Buscar una carta en todos los mazos…" aria-label="Buscar carta en todos los mazos"></div>
+    <div class="actions">
+      <input id="file" type="file" accept=".csv,.tsv,.txt,.json" multiple hidden>
+      <button class="btn" id="importBtn" type="button">Importar CSV</button>
+      <button class="btn" id="newBtn" type="button">Nuevo mazo</button>
+      <button class="btn" id="backupBtn" type="button" title="Guardar o recuperar todos tus mazos en un archivo">Respaldo</button>
+      <button class="btn" id="themeBtn" type="button" title="Cambiar entre tema claro y oscuro" aria-label="Cambiar entre tema claro y oscuro"></button>
+      <span class="status" id="status"></span>
+      <button class="btn primary" id="saveBtn" type="button" hidden>Guardar</button>
+    </div>
+  </header>
+  <div class="layout">
+    <main class="view" id="view"><div class="deckhead empty">Cargando mazos…</div></main>
+  </div>
+  <div id="overlay"></div>
+</div>
+<script type="application/json" id="deck-data">__DATA__</script>
+<script type="application/json" id="mana-syms">__SYMBOLS__</script>
+<script type="application/json" id="set-codes">__SETS__</script>
+<script id="main-js">
+(function () {
+  const DRAFT_KEY = "boveda-mazos-draft-v2";
+  const UI_KEY = "boveda-mazos-ui-v2";
+  const BACKUP_KEY = "boveda-mazos-lastbackup";     // when all decks were last written to a file
+  const FILE_DIRTY_KEY = "boveda-mazos-filedirty";  // changes made since then (local version)
+  let fileHandle = null;
+  const BASICS = new Set(["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes", "Snow-Covered Plains", "Snow-Covered Island", "Snow-Covered Swamp", "Snow-Covered Mountain", "Snow-Covered Forest", "Snow-Covered Wastes"]);
+  const SPRITE = { cols: 10, rows: 6 };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const money = (n) => "$" + (Math.round(n * 100) / 100).toFixed(2);
+  const uid = () => Math.random().toString(36).slice(2, 10);
+  const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const localMode = !(window.claude && window.claude.use);
+
+  let stored = null, S = null, dirty = false;
+  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "" };
+  let artifactApi = null, downloadsApi = null, assetsApi = null, canPublish = false, readOnly = false;
+  let previewIdx = null;
+
+  function lsGet(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+  const deckOf = (id) => S.decks.find((d) => d.id === id);
+  const count = (d) => d.cards.reduce((a, c) => a + c.q, 0);
+  const value = (d) => d.cards.reduce((a, c) => a + c.q * c.p, 0);
+  const meta = (n) => S.meta[n] || null;
+  const isCmd = (d, n) => d.cmd.includes(n);
+
+  function change() {
+    dirty = true;
+    lsSet(DRAFT_KEY, { base: stored.savedAt, data: S });
+    if (localMode) lsSet(FILE_DIRTY_KEY, true);
+    render();
+  }
+
+  // ---------- Card data ----------
+  const TYPE_GROUPS = [
+    ["Creature", "Criaturas"], ["Planeswalker", "Planeswalkers"], ["Battle", "Batallas"], ["Land", "Tierras"],
+    ["Instant", "Instantáneos"], ["Sorcery", "Conjuros"], ["Artifact", "Artefactos"], ["Enchantment", "Encantamientos"],
+  ];
+  const COLOR_NAMES = { W: "Blanco", U: "Azul", B: "Negro", R: "Rojo", G: "Verde" };
+  function typeGroup(n) {
+    const m = meta(n);
+    if (!m) return "Sin datos";
+    const t = m.t.split(" // ")[0];
+    const hit = TYPE_GROUPS.find(([k]) => t.includes(k));
+    return hit ? hit[1] : "Otros";
+  }
+  function isLand(n) { return typeGroup(n) === "Tierras"; }
+  function cmcOf(n) { const m = meta(n); return m ? m.cmc : 0; }
+  function groupKey(d, c) {
+    if (isCmd(d, c.n)) return "Comandante";
+    if (ui.group === "type") return typeGroup(c.n);
+    if (ui.group === "cmc") { if (isLand(c.n)) return "Tierras"; const v = Math.floor(cmcOf(c.n)); return v >= 7 ? "Coste 7+" : "Coste " + v; }
+    if (ui.group === "color") {
+      if (isLand(c.n)) return "Tierras";
+      const m = meta(c.n); if (!m) return "Sin datos";
+      const cols = (m.m.match(/[WUBRG]/g) || []).filter((x, i, a) => a.indexOf(x) === i);
+      return cols.length === 0 ? "Incoloro" : cols.length > 1 ? "Multicolor" : COLOR_NAMES[cols[0]];
+    }
+    return "Cartas";
+  }
+  const GROUP_ORDER = ["Comandante", ...TYPE_GROUPS.map((x) => x[1]).filter((x) => x !== "Tierras"), "Blanco", "Azul", "Negro", "Rojo", "Verde", "Multicolor", "Incoloro",
+    "Coste 0", "Coste 1", "Coste 2", "Coste 3", "Coste 4", "Coste 5", "Coste 6", "Coste 7+", "Cartas", "Otros", "Tierras", "Sin datos"];
+
+  // Official mana symbols (Scryfall SVGs) embedded in the page; anything missing falls back to a drawn circle.
+  const SYMS = (() => { try { return JSON.parse($("mana-syms").textContent) || {}; } catch (e) { return {}; } })();
+  const symImg = (s, cls) => `<img class="${cls} sym" src="${SYMS[s]}" alt="${esc(s)}" draggable="false">`;
+  function costHtml(cost) {
+    if (!cost) return "";
+    const syms = cost.match(/\{[^}]+\}/g) || [];
+    return `<span class="cost" aria-label="Coste ${esc(cost)}">` + syms.map((s) => {
+      if (SYMS[s]) return symImg(s, "ms");
+      const x = s.slice(1, -1);
+      const parts = x.split("/");
+      const cols = parts.filter((p) => "WUBRG".includes(p));
+      if (parts.length === 2 && cols.length) {
+        const a = "WUBRG".includes(parts[0]) ? `var(--m${parts[0]})` : "var(--mC)";
+        const b = "WUBRG".includes(parts[1]) ? `var(--m${parts[1]})` : "var(--mC)";
+        const label = parts[1] === "P" ? "ϕ" : "";
+        return `<span class="ms" style="background:linear-gradient(135deg, ${a} 50%, ${b} 50%)">${label}</span>`;
+      }
+      return `<span class="ms ${"WUBRG".includes(x) ? x : ""}">${"WUBRG".includes(x) ? "" : esc(x)}</span>`;
+    }).join("") + "</span>";
+  }
+  // Back face image of a Scryfall card object (transform, modal DFC, reversible), or "" for single-image cards.
+  const backOf = (sc) => { const f = sc.card_faces || []; return f.length > 1 && f[1].image_uris ? f[1].image_uris.normal : ""; };
+  // Back face for a card in a deck: its own chosen printing's back, else the default one (only reachable where Scryfall is).
+  function backImg(n, c) {
+    if (c && c.imb) return c.imb;
+    const m = meta(n);
+    return localMode && m && m.b ? m.b : "";
+  }
+  // With flip set, double-faced cards get a button that turns the card over, like Scryfall's "Turn over".
+  function artHtml(n, cls, c, flip) {
+    const back = flip && backImg(n, c);
+    if (back) return `<span class="flip"><span class="faces">${artHtml(n, cls, c)}<img class="art back" src="${esc(back)}" alt="${esc(n)} (reverso)" loading="lazy" decoding="async"></span>`
+      + `<span class="flipbtn" role="button" tabindex="0" data-flip title="Dar la vuelta" aria-label="Dar la vuelta a la carta">${icon("flip")}</span></span>`;
+    const m = meta(n);
+    const alt = esc(n);
+    if (c && c.im) return `<img class="art ${cls || ""}" src="${esc(c.im)}" alt="${alt}" loading="lazy" decoding="async">`;
+    if (m && m.img && (localMode || !m.sp)) return `<img class="art ${cls || ""}" src="${esc(m.img)}" alt="${alt}" loading="lazy" decoding="async">`;
+    if (m && m.sp) {
+      const i = m.sp[1], col = i % SPRITE.cols, row = Math.floor(i / SPRITE.cols);
+      return `<div class="art ${cls || ""}" role="img" aria-label="${alt}" style="background-image:url(img/s${m.sp[0]}.jpg);background-size:${SPRITE.cols * 100}% ${SPRITE.rows * 100}%;background-position:${(col * 100) / (SPRITE.cols - 1)}% ${(row * 100) / (SPRITE.rows - 1)}%"></div>`;
+    }
+    return `<div class="art ph ${cls || ""}"><b>${alt}</b><span>${m ? esc(m.t) : "Sin imagen"}</span>${m ? costHtml(m.m) : ""}</div>`;
+  }
+  // StarCityGames search for the card (front face name for double-faced cards).
+  const scgUrl = (n) => "https://starcitygames.com/search/?search_query=" + encodeURIComponent(n.split(" // ")[0]);
+  function scryUrl(n) {
+    const m = meta(n);
+    return m && m.u ? m.u : "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"');
+  }
+  // Fills card data for names we don't know yet (works where Scryfall is reachable, e.g. the local file).
+  function lookupMissing() {
+    const names = [...new Set(S.decks.flatMap((d) => d.cards.map((c) => c.n)))].filter((n) => !S.meta[n]);
+    if (!names.length) return;
+    const chunks = [];
+    for (let i = 0; i < names.length; i += 75) chunks.push(names.slice(i, i + 75));
+    let got = 0;
+    chunks.reduce((p, chunk) => p.then(() => fetch("https://api.scryfall.com/cards/collection", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifiers: chunk.map((n) => ({ name: n.split(" // ")[0] })) }),
+    }).then((r) => r.json()).then((res) => {
+      for (const c of res.data || []) {
+        const face = (c.card_faces || [c])[0];
+        const key = chunk.find((n) => norm(n.split(" // ")[0]) === norm(c.name.split(" // ")[0])) || c.name;
+        S.meta[key] = { t: face.type_line || c.type_line || "", m: face.mana_cost != null ? face.mana_cost : c.mana_cost || "", cmc: c.cmc || 0,
+          ci: (c.color_identity || []).join(""), img: ((c.image_uris || face.image_uris) || {}).normal || "", u: (c.scryfall_uri || "").split("?")[0] };
+        const back = backOf(c);
+        if (back) S.meta[key].b = back;
+        got++;
+      }
+    })), Promise.resolve()).then(() => { if (got) change(); }, () => {});
+  }
+
+  // ---------- CSV ----------
+  function parseCsv(text) {
+    const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
+    if (!lines.length) return [];
+    const sep = lines[0].includes("\t") ? "\t" : ",";
+    const head = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+    const col = (names, fb) => { const i = head.findIndex((h) => names.includes(h)); return i < 0 ? fb : i; };
+    const iq = col(["quantityx", "quantity", "qty", "cantidad"], 0), inn = col(["name", "nombre"], 1),
+      ie = col(["edition", "set", "edicion", "edición"], 2), iff = col(["foil"], 3), ip = col(["price", "precio"], 4);
+    const hasHead = head.includes("name") || head.includes("quantityx") || head.includes("nombre");
+    return lines.slice(hasHead ? 1 : 0).map((l) => {
+      const f = l.split(sep);
+      const name = (f[inn] || "").trim();
+      if (!name) return null;
+      return { q: Math.max(1, parseInt(f[iq], 10) || 1), n: name, e: (f[ie] || "").trim(), f: /foil/i.test(f[iff] || ""),
+        p: parseFloat(String(f[ip] || "").replace(/[^0-9.]/g, "")) || 0 };
+    }).filter(Boolean);
+  }
+  function toCsv(d) {
+    return "QuantityX\tName\tEdition\tFoil\tPrice\n" +
+      d.cards.map((c) => `${c.q}x\t${c.n}\t${c.e}\t${c.f ? "Foil" : ""}\t${money(c.p)}`).join("\n") + "\n";
+  }
+  function guessCommander(name, cards) {
+    const k = norm(name);
+    const hit = cards.find((c) => norm(c.n).startsWith(k));
+    return hit ? [hit.n] : [];
+  }
+  function importFiles(files) {
+    const backup = [...files].find((f) => /\.json$/i.test(f.name));
+    if (backup) return restoreBackup(backup);
+    let added = 0, replaced = 0;
+    const jobs = [...files].map((file) => file.text().then((text) => {
+      const cards = parseCsv(text);
+      if (!cards.length) return;
+      const name = file.name.replace(/\.[^.]+$/, "").split("_")[0].trim() || file.name;
+      const existing = S.decks.find((d) => norm(d.name) === norm(name));
+      if (existing) {
+        existing.cards = cards;
+        existing.cmd = existing.cmd.filter((n) => cards.some((c) => c.n === n));
+        if (!existing.cmd.length) existing.cmd = guessCommander(name, cards);
+        ui.deck = existing.id; replaced++;
+      } else {
+        const d = { id: uid(), name, cmd: guessCommander(name, cards), cards };
+        S.decks.push(d); ui.deck = d.id; added++;
+      }
+    }));
+    Promise.all(jobs).then(() => {
+      if (!added && !replaced) { toast("No se encontraron cartas en ese archivo. Revisa que tenga columnas separadas por tabulador."); return; }
+      change(); lookupMissing();
+      toast([added && `${added} mazo(s) nuevo(s)`, replaced && `${replaced} mazo(s) actualizado(s)`].filter(Boolean).join(", "));
+    });
+  }
+
+  // ---------- Render ----------
+  function render() {
+    renderStatus();
+    renderSide();
+    if (ui.filter.trim().length >= 2) renderSearch(); else renderDeck();
+    const { filter, ...keep } = ui;
+    lsSet(UI_KEY, keep);
+  }
+  function renderStatus() {
+    const st = $("status");
+    if (localMode) {
+      // Edits from before this button existed only live in the browser draft, so they count as unsaved too.
+      const last = lsGet(BACKUP_KEY), unsaved = lsGet(FILE_DIRTY_KEY) || (!last && dirty);
+      const t = last && new Date(last), today = t && t.toDateString() === new Date().toDateString();
+      st.textContent = unsaved ? "Sin guardar" : last ? "Guardado " + t.toLocaleString("es", today ? { timeStyle: "short" } : { day: "numeric", month: "short" }) : "Sin cambios";
+      st.title = unsaved ? "Hay cambios que aún no están en tu archivo de respaldo" : last ? "Último guardado en archivo: " + fmtDate(last) : "";
+      st.className = unsaved ? "status dirty" : "status";
+      const b = $("saveBtn");
+      b.hidden = false;
+      b.classList.toggle("primary", !!unsaved);
+      b.title = "Guardar todos tus mazos en un archivo de respaldo" + (fileHandle ? ` (${fileHandle.name})` : "") + " · Ctrl+S";
+      return;
+    }
+    else if (readOnly) { st.textContent = "Solo lectura: tus cambios quedan en este navegador"; st.className = "status"; }
+    else if (dirty) { st.textContent = "Cambios sin guardar"; st.className = "status dirty"; }
+    else { st.textContent = "Todo guardado"; st.className = "status"; }
+    $("saveBtn").hidden = !(dirty && canPublish);
+  }
+  // Color identity of a deck: its commander(s), or every card when no commander is set.
+  const COMBOS = {
+    "": "Incoloro", W: "Blanco", U: "Azul", B: "Negro", R: "Rojo", G: "Verde",
+    WU: "Azorius", UB: "Dimir", BR: "Rakdos", RG: "Gruul", WG: "Selesnya", WB: "Orzhov", UR: "Izzet", BG: "Golgari", WR: "Boros", UG: "Simic",
+    WUB: "Esper", UBR: "Grixis", BRG: "Jund", WRG: "Naya", WUG: "Bant", WBG: "Abzan", WUR: "Jeskai", UBG: "Sultai", WBR: "Mardu", URG: "Temur",
+    WUBR: "Yore-Tiller", UBRG: "Glint-Eye", WBRG: "Dune-Brood", WURG: "Ink-Treader", WUBG: "Witch-Maw", WUBRG: "Cinco colores",
+  };
+  const COMBO_ORDER = Object.keys(COMBOS);
+  function deckColors(d) {
+    const set = new Set();
+    (d.cmd.length ? d.cmd : d.cards.map((c) => c.n)).forEach((n) => { const m = meta(n); if (m) for (const ch of m.ci || "") set.add(ch); });
+    return "WUBRG".split("").filter((c) => set.has(c)).join("");
+  }
+  function pipsHtml(ci) {
+    return `<span class="pips" aria-label="${esc(COMBOS[ci] || ci)}" title="${esc(COMBOS[ci] || ci)}">${(ci || "C").split("").map((c) =>
+      SYMS["{" + c + "}"] ? symImg("{" + c + "}", "pip") : `<span class="pip ${c}">${c}</span>`).join("")}</span>`;
+  }
+  let menuOpen = false;
+  function renderSide() {
+    const cur = !ui.filter.trim() && deckOf(ui.deck);
+    const cols = [["Monocolor", (n) => n <= 1], ["Dos colores", (n) => n === 2], ["Tres colores", (n) => n === 3], ["Cuatro o más", (n) => n >= 4]];
+    const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
+      .sort((a, b) => COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci) || a.d.name.localeCompare(b.d.name));
+    const mega = cols.map(([title, test]) => {
+      const list = items.filter((x) => test(x.ci.length));
+      return list.length ? `<div class="mcol"><h3>${title}</h3>${list.map(({ d, ci }) => `
+        <button type="button" class="mitem${cur && cur.id === d.id ? " on" : ""}" data-deck="${d.id}">
+          ${pipsHtml(ci)}<span><b>${esc(d.name)}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
+        </button>`).join("")}</div>` : "";
+    }).join("") || `<p class="status empty">Aún no hay mazos. Importa un CSV o crea uno nuevo.</p>`;
+    $("decklist").innerHTML = `
+      <button type="button" class="dmbtn" id="dmBtn" aria-expanded="${menuOpen}" aria-haspopup="true">
+        <span class="lbl">Mazos</span>${cur ? pipsHtml(deckColors(cur)) + `<b>${esc(cur.name)}</b>` : `<b>Elegir mazo</b>`}<span class="caret">▾</span>
+      </button>
+      ${menuOpen ? `<div class="mega" role="menu">${mega}<div class="totals mtot" id="totals"></div></div>` : ""}`;
+    const all = S.decks.reduce((a, d) => a + value(d), 0);
+    const cards = S.decks.reduce((a, d) => a + count(d), 0);
+    if ($("totals")) $("totals").innerHTML = `<div><span>Mazos</span><span class="num">${S.decks.length}</span></div>
+      <div><span>Cartas</span><span class="num">${cards}</span></div>
+      <div><span>Valor total</span><span class="num">${money(all)}</span></div>`;
+  }
+  function otherDecksIndex(exceptId) {
+    const m = new Map();
+    for (const d of S.decks) if (d.id !== exceptId) for (const c of d.cards) {
+      if (BASICS.has(c.n)) continue;
+      if (!m.has(c.n)) m.set(c.n, []);
+      if (!m.get(c.n).includes(d.name)) m.get(c.n).push(d.name);
+    }
+    return m;
+  }
+  function sortedRows(d) {
+    const f = norm(d.localFilter || "");
+    const keyFns = { n: (c) => c.n.toLowerCase(), cmc: (c) => cmcOf(c.n) * 1000 + 0, p: (c) => -c.p };
+    const key = keyFns[ui.sort] || keyFns.n;
+    return d.cards.map((c, i) => ({ c, i }))
+      .filter(({ c }) => !(ui.hideOk && c.ok))
+      .filter(({ c }) => !f || norm(c.n).includes(f) || norm(c.e).includes(f) || (meta(c.n) && norm(meta(c.n).t).includes(f)))
+      .sort((a, b) => { const x = key(a.c), y = key(b.c); return x < y ? -1 : x > y ? 1 : a.c.n.localeCompare(b.c.n); });
+  }
+  function groupsOf(d, rows) {
+    const g = new Map();
+    for (const r of rows) { const k = groupKey(d, r.c); if (!g.has(k)) g.set(k, []); g.get(k).push(r); }
+    return [...g.entries()].sort((a, b) => GROUP_ORDER.indexOf(a[0]) - GROUP_ORDER.indexOf(b[0]));
+  }
+  function curveHtml(d) {
+    const b = [0, 0, 0, 0, 0, 0, 0, 0];
+    for (const c of d.cards) if (meta(c.n) && !isLand(c.n)) b[Math.min(7, Math.floor(cmcOf(c.n)))] += c.q;
+    const max = Math.max(1, ...b);
+    return `<div class="curve" title="Curva de maná (sin tierras)"><div class="bars">${b.map((v, i) =>
+      `<div class="bar" title="${v} carta(s) de coste ${i === 7 ? "7+" : i}"><b>${v || ""}</b><i style="height:${(v / max) * 54}px"></i><em>${i === 7 ? "7+" : i}</em></div>`).join("")}</div></div>`;
+  }
+  function deckStats(d) {
+    const foils = d.cards.filter((c) => c.f).reduce((a, c) => a + c.q, 0);
+    const byType = {};
+    d.cards.forEach((c) => { const g = typeGroup(c.n); byType[g] = (byType[g] || 0) + c.q; });
+    const typeCounts = [...TYPE_GROUPS.map((x) => x[1]), "Otros", "Sin datos"].filter((g) => byType[g]).map((g) => [g.toLowerCase(), byType[g]]);
+    const spells = d.cards.filter((c) => !isLand(c.n) && meta(c.n));
+    const spellQ = spells.reduce((a, c) => a + c.q, 0);
+    const avgCmc = spellQ ? (spells.reduce((a, c) => a + cmcOf(c.n) * c.q, 0) / spellQ).toFixed(2) : "—";
+    return { foils, typeCounts, avgCmc };
+  }
+  // Dropdown menu for a ui setting. The summary shows the chosen option's icon, else iconKey, else the icon named after the key.
+  function seg(key, title, opts, iconKey) {
+    const cur = opts.find(([val]) => ui[key] === val) || opts[0];
+    return `<details class="more dd">
+      <summary class="btn" aria-label="${title}">${icon(cur[2] || iconKey || key)}<span class="ddk">${title}</span> ${cur[1]}${icon("chev")}</summary>
+      <div class="menu">${opts.map(([val, label, ic]) => `<button type="button" data-${key}="${val}" class="${ui[key] === val ? "on" : ""}">${ic ? icon(ic) : ""}${label}</button>`).join("")}</div>
+    </details>`;
+  }
+  // Main page: one card per deck, sorted by ui.hsort (color identity by default, like the Mazos menu).
+  const avgOf = (d) => { const a = parseFloat(deckStats(d).avgCmc); return isNaN(a) ? 99 : a; };
+  const HOME_SORTS = {
+    color: (a, b) => COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci),
+    ncolors: (a, b) => a.ci.length - b.ci.length || COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci),
+    name: () => 0,
+    value: (a, b) => value(b.d) - value(a.d),
+    cmc: (a, b) => avgOf(a.d) - avgOf(b.d),
+    foils: (a, b) => deckStats(b.d).foils - deckStats(a.d).foils,
+  };
+  function renderHome() {
+    const v = $("view");
+    if (!S.decks.length) { v.innerHTML = `<div class="deckhead empty">Aún no hay mazos. Importa un CSV (también puedes arrastrarlo aquí) o crea un mazo nuevo.</div>`; return; }
+    const by = HOME_SORTS[ui.hsort] || HOME_SORTS.color;
+    const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
+      .sort((a, b) => by(a, b) || a.d.name.localeCompare(b.d.name));
+    const all = S.decks.reduce((a, d) => a + value(d), 0);
+    const cards = S.decks.reduce((a, d) => a + count(d), 0);
+    v.innerHTML = `
+      <div class="homehead">
+        <h2>Mis mazos</h2>
+        <div class="statline"><span><b class="num">${S.decks.length}</b> mazos</span><span><b class="num">${cards}</b> cartas</span><span><b class="num">${money(all)}</b> valor total</span></div>
+        <div class="hsort">${seg("hsort", "Ordenar", [["color", "Colores", "palette"], ["ncolors", "Número de colores", "circles"], ["name", "Nombre", "az"], ["value", "Valor (mayor primero)", "dollar"], ["cmc", "Coste medio (menor primero)", "bolt"], ["foils", "Foils (más primero)", "sparkle"]], "sort")}</div>
+      </div>
+      <div class="decks">${items.map(({ d, ci }) => {
+        const n = count(d), { foils, typeCounts, avgCmc } = deckStats(d);
+        const cmds = d.cmd.map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
+        return `<button type="button" class="dcard" data-deck="${d.id}">
+          <div class="thumbs">${cmds.length ? cmds.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">?</span>`}</div>
+          <div class="info">
+            <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}<span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span></div>
+            <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
+            <div class="statline"><span><b class="num">${money(value(d))}</b> valor</span><span><b class="num">${foils}</b> foils</span><span><b class="num">${avgCmc}</b> coste medio</span></div>
+            <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
+            ${curveHtml(d)}
+          </div>
+        </button>`;
+      }).join("")}</div>`;
+  }
+  function renderDeck() {
+    const d = deckOf(ui.deck);
+    const v = $("view");
+    if (!d) return renderHome();
+    const n = count(d), val = value(d);
+    const { foils, typeCounts, avgCmc } = deckStats(d);
+    const okCount = d.cards.filter((c) => c.ok).length;
+    const rows = sortedRows(d);
+    const cmdIdx = d.cmd.map((x) => d.cards.findIndex((c) => c.n === x)).filter((i) => i >= 0);
+    let body;
+    if (ui.view === "table") body = tableHtml(d, rows);
+    else if (ui.view === "grid") body = gridHtml(d, rows);
+    else body = listHtml(d, rows);
+    const showPreview = ui.view === "list";
+    if (previewIdx == null || !d.cards[previewIdx]) {
+      const ci = d.cards.findIndex((c) => isCmd(d, c.n));
+      previewIdx = ci >= 0 ? ci : d.cards.length ? 0 : null;
+    }
+    v.innerHTML = `
+      <section class="deckhead compact">
+        <div class="cmdthumbs">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
+          : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
+        <div class="dh-main">
+          <div class="titlerow">
+            <h2 class="deckname">${esc(d.name)}</h2>
+            ${pipsHtml(deckColors(d))}
+            <span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span>
+          </div>
+          <div class="cmdr">${d.cmd.length ? d.cmd.map((x) => `<b>${esc(x)}</b>`).join(" + ") : "Sin comandante: abre una carta y márcala como comandante."}</div>
+          <div class="statline"><span><b class="num">${money(val)}</b> valor</span><span><b class="num">${foils}</b> foils</span>
+            <span><b class="num">${avgCmc}</b> coste medio</span><span><b class="num">${d.cards.length}</b> cartas distintas</span></div>
+          <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
+          <div class="dh-actions">
+          <button class="btn ibtn add" id="addCardBtn" type="button" title="Agregar carta" aria-label="Agregar carta">${icon("plus")}</button>
+          <button class="btn ibtn" id="exportBtn" type="button" title="Exportar" aria-label="Exportar">${icon("export")}</button>
+          <button class="btn ibtn" type="button" id="renameBtn" title="Renombrar" aria-label="Renombrar">${icon("edit")}</button>
+          <button class="btn ibtn" type="button" id="dupBtn" title="Duplicar" aria-label="Duplicar">${icon("copy")}</button>
+          <button class="btn ibtn danger" type="button" id="delDeckBtn" title="Eliminar mazo" aria-label="Eliminar mazo">${icon("trash")}</button>
+          </div>
+        </div>
+        ${curveHtml(d)}
+        <div class="toolbar">
+          ${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
+          ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
+          ${seg("sort", "Ordenar", [["n", "Nombre", "az"], ["cmc", "Coste", "bolt"], ["p", "Precio", "dollar"]])}` : ""}
+          <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button>
+          <input id="deckFilter" type="search" placeholder="Filtrar por nombre, tipo o edición…" value="${esc(d.localFilter || "")}" aria-label="Filtrar cartas del mazo">
+        </div>
+      </section>
+      <div class="board${showPreview ? "" : " nopreview"}">
+        ${showPreview ? `<aside class="preview" id="preview">${previewHtml(d)}</aside>` : ""}
+        <div>${body}</div>
+      </div>`;
+  }
+  function previewHtml(d) {
+    const c = d.cards[previewIdx];
+    if (!c) return "";
+    const m = meta(c.n);
+    return `${artHtml(c.n, "", c, true)}
+      <div class="pname">${esc(c.n)}</div>
+      <div class="pmeta"><span class="num">${money(c.p)}</span>${c.f ? `<span style="color:var(--foil);font-weight:700">Foil</span>` : ""}<span>${esc(c.e)}</span></div>
+      ${m ? `<div class="pmeta">${esc(m.t)}</div>` : ""}`;
+  }
+  function groupHead(name, rows, extra) {
+    const qty = rows.reduce((a, r) => a + r.c.q, 0);
+    const val = rows.reduce((a, r) => a + r.c.q * r.c.p, 0);
+    const closed = ui.collapsed[name];
+    return `<button type="button" class="ghead" data-collapse="${esc(name)}" aria-expanded="${!closed}">${esc(name)} <span class="num">(${qty})</span>${extra || ""}<span class="gval num">${money(val)}</span><span class="caret">${closed ? "▸" : "▾"}</span></button>`;
+  }
+  // Check mark for "already compared against the real card" (image, edition…); marks this copy only.
+  const okBtn = (c, i) => `<span class="okbtn${c.ok ? " on" : ""}" role="button" tabindex="0" data-ok="${i}" aria-pressed="${!!c.ok}"
+    title="${c.ok ? "Verificada · clic para desmarcar" : "Marcar como verificada"}" aria-label="${c.ok ? "Verificada" : "Marcar como verificada"}: ${esc(c.n)}">${icon("check")}</span>`;
+  function listHtml(d, rows) {
+    if (!rows.length) return emptyHtml(d);
+    return `<div class="groups">${groupsOf(d, rows).map(([name, rs]) => `
+      <section class="group">${groupHead(name, rs)}
+        ${ui.collapsed[name] ? "" : rs.map(({ c, i }) => `
+          <div class="row${i === previewIdx ? " sel" : ""}" data-card="${i}" tabindex="0" role="button" aria-label="${esc(c.n)}">
+            <span class="q num">${c.q}</span>
+            <span class="nm">${esc(c.n)}${c.f ? `<span class="foilmark">FOIL</span>` : ""}</span>
+            ${meta(c.n) ? costHtml(meta(c.n).m) : "<span></span>"}
+            ${okBtn(c, i)}
+          </div>`).join("")}
+      </section>`).join("")}</div>`;
+  }
+  function gridHtml(d, rows) {
+    if (!rows.length) return emptyHtml(d);
+    return groupsOf(d, rows).map(([name, rs]) => `
+      <section class="gsec">${groupHead(name, rs)}
+        ${ui.collapsed[name] ? "" : `<div class="ggrid">${rs.map(({ c, i }) => `
+          <button type="button" class="gcard" data-card="${i}" title="${esc(c.n)}">
+            ${artHtml(c.n, "", c, true)}${okBtn(c, i)}
+            ${c.q > 1 ? `<span class="badge">${c.q}x</span>` : ""}${c.f ? `<span class="badge foil">Foil</span>` : ""}
+            <span class="cap"><span>${esc(c.n)}</span><span class="num">${money(c.p)}</span></span>
+          </button>`).join("")}</div>`}
+      </section>`).join("");
+  }
+  function tableHtml(d, rows) {
+    const others = otherDecksIndex(d.id);
+    const key = { ok: (c) => (c.ok ? 1 : 0), q: (c) => c.q, n: (c) => c.n.toLowerCase(), t: (c) => typeGroup(c.n), m: (c) => cmcOf(c.n), e: (c) => c.e.toLowerCase(), f: (c) => (c.f ? 1 : 0), p: (c) => c.p, s: (c) => c.p * c.q }[ui.tsort] || ((c) => c.n);
+    rows = [...rows].sort((a, b) => {
+      const ac = isCmd(d, a.c.n), bc = isCmd(d, b.c.n);
+      if (ac !== bc) return ac ? -1 : 1;
+      const x = key(a.c), y = key(b.c);
+      return (x < y ? -1 : x > y ? 1 : 0) * ui.dir;
+    });
+    const arrow = (k) => (ui.tsort === k ? (ui.dir > 0 ? " ▲" : " ▼") : "");
+    return `<div class="tablewrap"><table>
+      <thead><tr>
+        <th class="sort" data-tsort="ok" title="Verificada">✓${arrow("ok")}</th>
+        <th class="sort" data-tsort="q">Cant.${arrow("q")}</th>
+        <th class="sort" data-tsort="n">Carta${arrow("n")}</th>
+        <th class="sort" data-tsort="t">Tipo${arrow("t")}</th>
+        <th class="sort" data-tsort="m">Coste${arrow("m")}</th>
+        <th class="sort" data-tsort="e">Edición${arrow("e")}</th>
+        <th class="sort" data-tsort="f">Foil${arrow("f")}</th>
+        <th class="sort r" data-tsort="p">Precio${arrow("p")}</th>
+        <th class="sort r" data-tsort="s">Subtotal${arrow("s")}</th>
+        <th><span hidden>Quitar</span></th>
+      </tr></thead>
+      <tbody>${rows.map(({ c, i }) => {
+        const o = others.get(c.n), m = meta(c.n);
+        return `<tr data-i="${i}" class="${isCmd(d, c.n) ? "is-cmdr" : ""}${c.ok ? " is-ok" : ""}">
+          <td>${okBtn(c, i)}</td>
+          <td><span class="qty"><button type="button" data-act="dec" aria-label="Quitar una copia">−</button><span class="num">${c.q}</span><button type="button" data-act="inc" aria-label="Agregar una copia">+</button></span></td>
+          <td><button type="button" class="linkbtn" data-card="${i}">${esc(c.n)}</button>${isCmd(d, c.n) ? `<span class="tag c">Comandante</span>` : ""}${o ? `<span class="tag" title="También en: ${esc(o.join(", "))}">+${o.length} mazo${o.length > 1 ? "s" : ""}</span>` : ""}</td>
+          <td class="type">${m ? esc(m.t.split(" // ")[0]) : "—"}</td>
+          <td>${m ? costHtml(m.m) : ""}</td>
+          <td><input class="edit" data-field="e" value="${esc(c.e)}" aria-label="Edición de ${esc(c.n)}"></td>
+          <td><button type="button" class="foilbtn${c.f ? " on" : ""}" data-act="foil">${c.f ? "Foil" : "No"}</button></td>
+          <td class="r"><input class="edit price" data-field="p" value="${c.p.toFixed(2)}" inputmode="decimal" aria-label="Precio de ${esc(c.n)}"></td>
+          <td class="r num">${money(c.p * c.q)}</td>
+          <td class="r"><button type="button" class="x" data-act="del" aria-label="Eliminar ${esc(c.n)}">×</button></td>
+        </tr>`;
+      }).join("") || `<tr><td colspan="10" class="empty">${d.cards.length ? "Ninguna carta coincide con el filtro." : "Este mazo está vacío. Agrega cartas con el formulario de arriba."}</td></tr>`}</tbody>
+    </table></div>`;
+  }
+  function emptyHtml(d) {
+    return `<div class="deckhead empty">${d.cards.length ? "Ninguna carta coincide con el filtro." : "Este mazo está vacío. Agrega cartas con el formulario de arriba."}</div>`;
+  }
+  function renderSearch() {
+    const q = norm(ui.filter.trim());
+    const hits = new Map();
+    for (const d of S.decks) d.cards.forEach((c, i) => {
+      if (!norm(c.n).includes(q)) return;
+      if (!hits.has(c.n)) hits.set(c.n, []);
+      hits.get(c.n).push({ d, c, i });
+    });
+    const list = [...hits.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    $("view").innerHTML = `
+      <section class="deckhead"><div class="titlerow"><h2 class="deckname">Resultados</h2>
+      <span class="status">${list.length} carta(s) coinciden con “${esc(ui.filter.trim())}”</span></div></section>
+      <div class="results">${list.slice(0, 120).map(([name, arr]) => `
+        <div class="result">
+          ${artHtml(name)}
+          <div>
+            <h3>${esc(name)} ${meta(name) ? costHtml(meta(name).m) : ""}</h3>
+            <p class="status">${meta(name) ? esc(meta(name).t) + " · " : ""}en ${new Set(arr.map((x) => x.d.id)).size} mazo(s)</p>
+            <div class="chips">${arr.map(({ d, c }) => `<button class="chip" type="button" data-goto="${d.id}">${esc(d.name)} · ${c.q}x ${esc(c.e)}${c.f ? " · Foil" : ""}</button>`).join("")}</div>
+          </div>
+        </div>`).join("") || `<div class="deckhead empty">Ninguna carta coincide en tus mazos.</div>`}
+      </div>`;
+  }
+
+  // ---------- Overlays ----------
+  function toast(msg) {
+    const t = document.createElement("div");
+    t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  }
+  const ICONS = {
+    list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 10v10"/>',
+    group: '<path d="M12 3 2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5"/>',
+    sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    trash: '<path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/>',
+    export: '<path d="M12 3v12M7 8l5-5 5 5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>',
+    edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+    copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    palette: '<path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A4.6 4.6 0 0 0 22 9.8C22 6 17.5 3 12 3z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15" cy="7.5" r="1"/>',
+    circles: '<circle cx="8" cy="9" r="5"/><circle cx="16" cy="9" r="5"/><circle cx="12" cy="16" r="5"/>',
+    az: '<path d="M3 19 7 5l4 14M4.5 14h5M14 6h7l-7 13h7"/>',
+    dollar: '<path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+    bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/>',
+    sparkle: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"/>',
+    flip: '<path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M18.5 2v3.8h-3.8M5.5 22v-3.8h3.8"/>',
+    cards: '<rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5 4 7a2 2 0 0 0-.9 2.6l4.6 10.3a2 2 0 0 0 2.6 1l1.7-.8"/>',
+    none: '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  };
+  const icon = (k) => `<svg class="ic${k === "chev" ? " chev" : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
+  function addCardModal() {
+    modal(`<h3>Agregar carta</h3>
+      <form class="addform" id="addForm" autocomplete="off">
+        <label class="f-q">Cantidad<input id="addQ" type="number" min="1" value="1"></label>
+        <label class="f-n">Nombre<input id="addN" type="text" placeholder="Nombre de la carta (en inglés)" required autofocus></label>
+        <label class="f-e">Edición<input id="addE" type="text" placeholder="Opcional"></label>
+        <label class="f-p">Precio<input id="addP" type="text" inputmode="decimal" placeholder="$0.00"></label>
+        <label class="f-f"><input id="addF" type="checkbox"> Foil</label>
+        <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn primary" type="submit">Agregar</button></div>
+      </form>`, (m, close) => { m.querySelector("[data-no]").onclick = close; });
+  }
+  function modal(html, wire, cls) {
+    const ov = $("overlay");
+    ov.innerHTML = `<div class="modal-bg"><div class="modal ${cls || ""}" role="dialog" aria-modal="true">${html}</div></div>`;
+    const close = () => { ov.innerHTML = ""; };
+    ov.querySelector(".modal-bg").addEventListener("click", (e) => { if (e.target.classList.contains("modal-bg")) close(); });
+    wire(ov.querySelector(".modal"), close);
+    const first = ov.querySelector("[autofocus], input, textarea, button.primary, button");
+    if (first) first.focus();
+  }
+  function confirmBox(title, text, label, onYes) {
+    modal(`<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn danger solid" data-yes type="button">${esc(label)}</button></div>`,
+      (m, close) => { m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = () => { close(); onYes(); }; });
+  }
+  function askName(title, initial, label, onOk) {
+    modal(`<h3>${esc(title)}</h3><form data-f><input type="text" id="nameInput" value="${esc(initial)}" required aria-label="Nombre del mazo"></form>
+      <div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn primary" data-yes type="button">${esc(label)}</button></div>`,
+      (m, close) => {
+        const go = () => { const v = m.querySelector("#nameInput").value.trim(); if (v) { close(); onOk(v); } };
+        m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = go;
+        m.querySelector("[data-f]").onsubmit = (e) => { e.preventDefault(); go(); };
+      });
+  }
+  function cardModal(d, c) {
+    const m = meta(c.n);
+    const o = otherDecksIndex(d.id).get(c.n);
+    modal(`<div class="cardmodal">
+        <div class="cardside">${artHtml(c.n, "", c, true)}<button class="btn" data-m="img" type="button">Cambiar imagen</button></div>
+        <div class="fields">
+          <h3>${esc(c.n)}</h3>
+          ${m ? `<div class="tl">${esc(m.t)} ${costHtml(m.m)}</div>` : ""}
+          <div class="inline"><button type="button" class="btn verifybtn${c.ok ? " on" : ""}" data-m="verify">${icon("check")} ${c.ok ? "Verificada" : "Marcar como verificada"}</button>
+            <span class="status">Imagen y edición comparadas con la carta real</span></div>
+          <div class="inline"><span class="qty"><button type="button" data-m="dec" aria-label="Quitar una copia">−</button><span class="num" id="mq">${c.q}</span><button type="button" data-m="inc" aria-label="Agregar una copia">+</button></span>
+            <button type="button" class="foilbtn${c.f ? " on" : ""}" data-m="foil">${c.f ? "Foil" : "No foil"}</button></div>
+          <label class="f">Edición<input type="text" id="mE" value="${esc(c.e)}"></label>
+          <label class="f">Precio (USD)<input type="text" id="mP" inputmode="decimal" value="${c.p.toFixed(2)}"></label>
+          <label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>
+          ${o ? `<p class="status">También en: ${esc(o.join(", "))}</p>` : ""}
+          <div class="inline"><a href="${esc(scryUrl(c.n))}" target="_blank" rel="noopener">Ver en Scryfall ↗</a>
+            <a href="${esc(scgUrl(c.n))}" target="_blank" rel="noopener">Ver en StarCityGames ↗</a></div>
+          <div class="row2"><button class="btn danger" data-m="del" type="button">Quitar del mazo</button><button class="btn primary" data-m="ok" type="button" autofocus>Listo</button></div>
+        </div>
+      </div>`, (el, close) => {
+      const apply = () => {
+        c.e = el.querySelector("#mE").value.trim();
+        c.p = parseFloat(el.querySelector("#mP").value.replace(/[^0-9.]/g, "")) || 0;
+        const want = el.querySelector("#mC").checked;
+        if (want && !isCmd(d, c.n)) d.cmd.push(c.n);
+        if (!want) d.cmd = d.cmd.filter((x) => x !== c.n);
+      };
+      el.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-m]"); if (!b) return;
+        const a = b.dataset.m;
+        if (a === "inc") { c.q++; el.querySelector("#mq").textContent = c.q; }
+        if (a === "dec" && c.q > 1) { c.q--; el.querySelector("#mq").textContent = c.q; }
+        if (a === "foil") { c.f = !c.f; b.classList.toggle("on", c.f); b.textContent = c.f ? "Foil" : "No foil"; }
+        if (a === "verify") { if (c.ok) delete c.ok; else c.ok = true; apply(); close(); change(); }
+        if (a === "ok") { apply(); close(); change(); }
+        if (a === "img") { apply(); close(); change(); imageModal(d, c); }
+        if (a === "del") { close(); d.cards.splice(d.cards.indexOf(c), 1); d.cmd = d.cmd.filter((x) => x !== c.n); previewIdx = null; change(); toast(`${c.n} eliminada`); }
+      });
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { apply(); close(); change(); } });
+    }, "wide");
+  }
+  function printsUrl(n) { return "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"') + "&unique=prints"; }
+  function imageModal(d, c) {
+    const sameName = () => S.decks.flatMap((x) => x.cards).filter((x) => x.n === c.n);
+    const copies = sameName().length;
+    modal(`<div class="imgmodal" id="imgModal">
+        <h3>Imagen de ${esc(c.n)}</h3>
+        <section><h4>Elegir otra impresión</h4><div class="prints" id="prints"><p class="status">Buscando impresiones en Scryfall…</p></div></section>
+        <section><h4>O usa tu propia imagen</h4>
+          <div class="pastezone" id="pasteZone" tabindex="0">Pega aquí una imagen con Ctrl+V o <button type="button" data-i="file">elige un archivo</button></div>
+          <input type="file" id="imgFile" accept="image/*" hidden>
+          <p class="status">En Scryfall: clic derecho sobre la imagen, «Copiar imagen», y pégala aquí. <a href="${esc(printsUrl(c.n))}" target="_blank" rel="noopener">Ver impresiones en Scryfall ↗</a></p>
+        </section>
+        ${copies > 1 ? `<label class="allrow"><input type="checkbox" id="allDecks"> Usar esta imagen en las ${copies} copias de esta carta en todos tus mazos</label>` : ""}
+        <div class="row2">${c.im ? `<button class="btn" data-i="reset" type="button">Restaurar imagen original</button>` : ""}<button class="btn" data-i="close" type="button">Cerrar</button></div>
+      </div>`, (el, close) => {
+      const targets = () => (el.querySelector("#allDecks") && el.querySelector("#allDecks").checked ? sameName() : [c]);
+      const setImg = (url, back) => {
+        targets().forEach((t) => { if (url) t.im = url; else delete t.im; if (back) t.imb = back; else delete t.imb; });
+        close(); change();
+        toast(url ? (localMode ? "Imagen cambiada" : "Imagen cambiada. Pulsa Guardar para conservarla.") : "Imagen original restaurada");
+      };
+      const zone = el.querySelector("#pasteZone");
+      const useBlob = (blob) => {
+        zone.textContent = "Procesando imagen…";
+        shrink(blob).then((small) => {
+          if (assetsApi) return assetsApi.upload(small).then((r) => "/_blob/" + r.id, () => toDataUrl(small));
+          return toDataUrl(small);
+        }).then(setImg, () => { zone.textContent = "No se pudo leer esa imagen. Prueba con un archivo JPG o PNG."; });
+      };
+      el.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-i], [data-print]"); if (!b) return;
+        if (b.dataset.print) return setImg(b.dataset.print, b.dataset.back);
+        if (b.dataset.i === "file") el.querySelector("#imgFile").click();
+        if (b.dataset.i === "reset") setImg(null);
+        if (b.dataset.i === "close") close();
+      });
+      el.querySelector("#imgFile").addEventListener("change", (e) => { if (e.target.files[0]) useBlob(e.target.files[0]); });
+      zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
+      zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+      zone.addEventListener("drop", (e) => { e.preventDefault(); zone.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) useBlob(f); });
+      const onPaste = (e) => {
+        if (!document.body.contains(el)) { document.removeEventListener("paste", onPaste); return; }
+        const items = [...(e.clipboardData ? e.clipboardData.items : [])];
+        const img = items.find((x) => x.type.startsWith("image/"));
+        if (img) { e.preventDefault(); useBlob(img.getAsFile()); return; }
+        const text = ((e.clipboardData && e.clipboardData.getData("text")) || "").trim();
+        if (/^https?:\/\//.test(text) && e.target.tagName !== "INPUT") {
+          e.preventDefault();
+          if (localMode) setImg(text);
+          else toast("Aquí no se pueden usar enlaces de imagen. Copia la imagen en sí (clic derecho, «Copiar imagen») y pégala.");
+        }
+      };
+      document.addEventListener("paste", onPaste);
+      zone.focus();
+      fetch("https://api.scryfall.com/cards/search?unique=prints&order=released&q=" + encodeURIComponent('!"' + c.n.split(" // ")[0] + '"'))
+        .then((r) => r.json()).then((res) => {
+          const prints = (res.data || []).map((p) => {
+            const iu = p.image_uris || ((p.card_faces || [])[0] || {}).image_uris || {};
+            return { small: iu.small, normal: iu.normal, back: backOf(p), set: p.set_name, num: p.collector_number };
+          }).filter((p) => p.normal);
+          if (!prints.length) throw new Error("none");
+          el.querySelector("#prints").innerHTML = prints.map((p) => `
+            <button type="button" class="pbtn${p.normal === c.im ? " on" : ""}" data-print="${esc(p.normal)}"${p.back ? ` data-back="${esc(p.back)}"` : ""} title="${esc(p.set)} #${esc(p.num)}">
+              <img class="art" src="${esc(p.small)}" alt="${esc(c.n)}, ${esc(p.set)}" loading="lazy"><b>${esc(p.set)}</b><span>#${esc(p.num)}</span>
+            </button>`).join("");
+        }).catch(() => {
+          el.querySelector("#prints").innerHTML = `<p class="status">Desde aquí no se puede consultar Scryfall. Abre las impresiones en Scryfall, copia la imagen que quieras y pégala abajo. <a href="${esc(printsUrl(c.n))}" target="_blank" rel="noopener">Ver impresiones en Scryfall ↗</a></p>`;
+        });
+    }, "wide");
+  }
+  // Card-sized JPEG so stored images stay small.
+  function shrink(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const im = new Image();
+      im.onload = () => {
+        const w = Math.min(488, im.naturalWidth), h = Math.round((im.naturalHeight * w) / im.naturalWidth);
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        cv.getContext("2d").drawImage(im, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        cv.toBlob((b) => (b ? resolve(b) : reject(new Error("encode"))), "image/jpeg", 0.86);
+      };
+      im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load")); };
+      im.src = url;
+    });
+  }
+  function toDataUrl(blob) {
+    return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob); });
+  }
+  // Moxfield import line: "1 Sol Ring (C16) 272 *F*". The collector number comes from the Scryfall
+  // printing we matched, and is only used when that printing is from the card's own edition.
+  const SETS = (() => { try { return JSON.parse($("set-codes").textContent) || {}; } catch (e) { return {}; } })();
+  function moxLine(c) {
+    const halves = c.n.split(" // ");
+    const name = halves.length === 2 && halves[0] === halves[1] ? halves[0] : c.n;
+    const code = SETS[c.e.toLowerCase()];
+    const m = meta(c.n);
+    let num = "";
+    if (code && m && m.u) {
+      const p = m.u.match(/\/card\/([^/]+)\/([^/]+)/);
+      if (p && p[1].toUpperCase() === code) num = " " + decodeURIComponent(p[2]);
+    }
+    return `${c.q} ${name}${code ? ` (${code})${num}` : ""}${c.f ? " *F*" : ""}`;
+  }
+  function toMoxfield(d) {
+    const cmd = d.cards.filter((c) => isCmd(d, c.n));
+    const rest = d.cards.filter((c) => !isCmd(d, c.n)).sort((a, b) => a.n.localeCompare(b.n));
+    return [...cmd, ...rest].map(moxLine).join("\n") + "\n";
+  }
+  function exportDeck(d) {
+    const base = d.name.replace(/[^\w\- ]+/g, "") || "mazo";
+    const formats = {
+      csv: { label: "CSV (Excel)", text: toCsv(d), file: base + ".csv", type: "text/csv",
+        help: "Mismo formato que tus archivos: columnas separadas por tabulador. Se abre en Excel." },
+      mox: { label: "Moxfield", text: toMoxfield(d), file: base + " (Moxfield).txt", type: "text/plain",
+        help: `En Moxfield: crea un mazo nuevo (formato Commander), pulsa «Import» y pega esta lista. ${d.cmd.length ? "El comandante va en la primera línea; si Moxfield no lo marca solo, márcalo como comandante en el mazo." : "Este mazo no tiene comandante marcado: elígelo después en Moxfield."}` },
+    };
+    let cur = "csv";
+    modal(`<h3>Exportar ${esc(d.name)}</h3>
+      <div class="seg" role="group">${Object.entries(formats).map(([k, f]) => `<button type="button" data-fmt="${k}" class="${k === cur ? "on" : ""}">${f.label}</button>`).join("")}</div>
+      <p class="status" id="fmtHelp"></p>
+      <textarea id="csvOut" readonly></textarea>
+      <div class="row2"><a class="btn" id="moxLink" href="https://moxfield.com/decks/personal" target="_blank" rel="noopener" hidden>Abrir Moxfield ↗</a><button class="btn" data-copy type="button">Copiar</button><button class="btn primary" data-dl type="button"></button><button class="btn" data-no type="button">Cerrar</button></div>`,
+      (m, close) => {
+        const show = () => {
+          const f = formats[cur];
+          m.querySelector("#csvOut").value = f.text;
+          m.querySelector("#fmtHelp").textContent = f.help;
+          m.querySelector("[data-dl]").textContent = "Descargar " + f.file;
+          m.querySelector("#moxLink").hidden = cur !== "mox";
+          m.querySelectorAll("[data-fmt]").forEach((b) => b.classList.toggle("on", b.dataset.fmt === cur));
+        };
+        show();
+        m.querySelectorAll("[data-fmt]").forEach((b) => (b.onclick = () => { cur = b.dataset.fmt; show(); }));
+        m.querySelector("[data-no]").onclick = close;
+        m.querySelector("[data-copy]").onclick = () => {
+          const ta = m.querySelector("#csvOut");
+          Promise.resolve().then(() => navigator.clipboard.writeText(formats[cur].text)).then(() => toast("Copiado al portapapeles"),
+            () => { ta.focus(); ta.select(); toast("Texto seleccionado: usa Ctrl+C para copiarlo"); });
+        };
+        m.querySelector("[data-dl]").onclick = () => download(formats[cur].file, formats[cur].text, formats[cur].type);
+      });
+  }
+  // ---------- Backup: every deck in one file, to keep elsewhere or move to another computer ----------
+  const fmtDate = (iso) => { const t = new Date(iso); return isNaN(t) ? "" : t.toLocaleString("es", { dateStyle: "medium", timeStyle: "short" }); };
+  const backupPayload = () => ({ app: "jedhrec", version: 1, exportedAt: new Date().toISOString(), decks: S.decks, meta: S.meta });
+  function markFileSaved() { lsSet(BACKUP_KEY, new Date().toISOString()); lsDel(FILE_DIRTY_KEY); renderStatus(); }
+  // The file Guardar writes to, kept in IndexedDB so later saves overwrite it without asking again (Chrome/Edge).
+  function handleStore(val) {
+    return new Promise((resolve, reject) => {
+      const r = indexedDB.open("jedhrec", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onerror = () => reject(r.error);
+      r.onsuccess = () => {
+        const st = r.result.transaction("kv", val ? "readwrite" : "readonly").objectStore("kv");
+        const q = val ? st.put(val, "saveFile") : st.get("saveFile");
+        q.onsuccess = () => resolve(q.result); q.onerror = () => reject(q.error);
+      };
+    });
+  }
+  if (localMode && window.showSaveFilePicker) handleStore().then((h) => { if (h) { fileHandle = h; renderStatus(); } }, () => {});
+  // Local Guardar: write every deck to a backup file. Without the File System Access API, download it instead.
+  async function saveToFile() {
+    const text = JSON.stringify(backupPayload());
+    if (!window.showSaveFilePicker) { download("jedhrec-respaldo.json", text, "application/json"); markFileSaved(); return; }
+    try {
+      if (fileHandle && (await fileHandle.requestPermission({ mode: "readwrite" })) !== "granted") fileHandle = null;
+      if (!fileHandle) {
+        fileHandle = await window.showSaveFilePicker({ suggestedName: "jedhrec-respaldo.json", types: [{ description: "Respaldo de Jedhrec", accept: { "application/json": [".json"] } }] });
+        handleStore(fileHandle).catch(() => {});
+      }
+      const w = await fileHandle.createWritable();
+      await w.write(text); await w.close();
+      markFileSaved();
+      toast("Guardado en " + fileHandle.name);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      fileHandle = null;
+      toast("No se pudo escribir el archivo. Se descargará una copia.");
+      download("jedhrec-respaldo.json", text, "application/json"); markFileSaved();
+    }
+  }
+  function backupModal() {
+    const last = lsGet(BACKUP_KEY);
+    const n = S.decks.length, cards = S.decks.reduce((a, d) => a + count(d), 0);
+    modal(`<h3>Respaldo</h3>
+      <p>Descarga un archivo con tus ${n} mazos (${cards} cartas): comandantes, ediciones, precios, foils e imágenes cambiadas. Guárdalo donde quieras (USB, nube, correo) y restáuralo aquí en cualquier computadora o navegador.</p>
+      <p class="status">${last ? "Último respaldo descargado: " + esc(fmtDate(last)) : "Aún no has descargado ningún respaldo."}</p>
+      <input type="file" id="backupFile" accept=".json,application/json" hidden>
+      <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn" data-restore type="button">Restaurar desde archivo…</button><button class="btn primary" data-dl type="button">Descargar respaldo</button></div>`,
+      (m, close) => {
+        m.querySelector("[data-no]").onclick = close;
+        m.querySelector("[data-dl]").onclick = () => {
+          const now = new Date();
+          const day = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+          download(`jedhrec-respaldo-${day}.json`, JSON.stringify(backupPayload()), "application/json");
+          markFileSaved();
+          close();
+        };
+        m.querySelector("[data-restore]").onclick = () => m.querySelector("#backupFile").click();
+        m.querySelector("#backupFile").onchange = (e) => { const f = e.target.files[0]; if (f) { close(); restoreBackup(f); } };
+      });
+  }
+  function restoreBackup(file) {
+    file.text().then((text) => {
+      let b;
+      try { b = JSON.parse(text); } catch (e) { b = null; }
+      if (!b || b.app !== "jedhrec" || !Array.isArray(b.decks)) { toast("Ese archivo no es un respaldo de Jedhrec."); return; }
+      const when = fmtDate(b.exportedAt);
+      confirmBox("Restaurar respaldo", `Se reemplazarán tus ${S.decks.length} mazos por los ${b.decks.length} del respaldo${when ? " del " + when : ""}.`, "Restaurar", () => {
+        S.decks = b.decks;
+        S.decks.forEach((d) => { if (!d.cmd) d.cmd = d.commander ? [d.commander] : []; delete d.commander; });
+        S.meta = Object.assign(S.meta || {}, b.meta || {});
+        ui.deck = null; ui.filter = ""; $("q").value = "";
+        change(); lookupMissing();
+        toast(`Respaldo restaurado: ${b.decks.length} mazos` + (localMode ? "" : ". Pulsa Guardar para conservarlo."));
+      });
+    }, () => toast("No se pudo leer ese archivo."));
+  }
+  function download(filename, text, type) {
+    type = type || "text/csv";
+    if (downloadsApi) {
+      downloadsApi.save({ filename, data: new Blob([text], { type }) }).then(() => toast("Archivo guardado"),
+        (e) => { if (e && e.code !== "declined") toast("No se pudo descargar aquí. Usa Copiar."); });
+      return;
+    }
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type }));
+      a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) { toast("No se pudo descargar aquí. Usa Copiar."); }
+  }
+
+  // ---------- Save ----------
+  function save() {
+    if (localMode) return saveToFile();
+    if (!artifactApi || !dirty) return;
+    const data = JSON.parse(JSON.stringify(S));
+    data.decks.forEach((d) => delete d.localFilter);
+    data.savedAt = new Date().toISOString();
+    $("saveBtn").disabled = true; $("status").textContent = "Guardando…";
+    artifactApi.publish({ "decks.json": { content: JSON.stringify(data), contentType: "application/json" } }).then(() => {
+      stored = { savedAt: data.savedAt }; S.savedAt = data.savedAt;
+      lsDel(DRAFT_KEY); dirty = false; $("saveBtn").disabled = false; renderStatus(); toast("Guardado");
+    }, (e) => {
+      $("saveBtn").disabled = false;
+      const code = e && e.code;
+      if (code === "conflict") return;
+      if (code === "not_writer" || code === "not_granted" || code === "capability_disabled") { readOnly = true; canPublish = false; renderStatus(); return; }
+      toast("No se pudo guardar. Tus cambios siguen en este navegador; intenta de nuevo en un momento.");
+      renderStatus();
+    });
+  }
+
+  // ---------- Events ----------
+  const app = $("app");
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll("details.dd[open]").forEach((el) => { if (!el.contains(e.target)) el.open = false; });
+  });
+  app.addEventListener("click", (e) => {
+    const fl = e.target.closest("[data-flip]");
+    if (fl) { fl.closest(".flip").classList.toggle("flipped"); return; }
+    const okb = e.target.closest("[data-ok]");
+    if (okb) {
+      const c = deckOf(ui.deck).cards[+okb.dataset.ok];
+      if (c.ok) delete c.ok; else c.ok = true;
+      change(); return;
+    }
+    if (e.target.closest("#hideOkBtn")) { ui.hideOk = !ui.hideOk; render(); return; }
+    const t = e.target.closest("button, th.sort, [data-card]");
+    if (!t) return;
+    if (t.id === "dmBtn") { menuOpen = !menuOpen; renderSide(); return; }
+    if (t.dataset.deck) { menuOpen = false; ui.deck = t.dataset.deck; ui.filter = ""; $("q").value = ""; previewIdx = null; render(); return; }
+    if (t.id === "homeBtn") { menuOpen = false; ui.deck = null; ui.filter = ""; $("q").value = ""; render(); return; }
+    if (t.dataset.goto) { ui.deck = t.dataset.goto; ui.filter = ""; $("q").value = ""; previewIdx = null; render(); return; }
+    if (t.dataset.view) { ui.view = t.dataset.view; render(); return; }
+    if (t.dataset.group) { ui.group = t.dataset.group; render(); return; }
+    if (t.dataset.sort) { ui.sort = t.dataset.sort; render(); return; }
+    if (t.dataset.hsort) { ui.hsort = t.dataset.hsort; render(); return; }
+    if (t.dataset.tsort) { ui.dir = ui.tsort === t.dataset.tsort ? -ui.dir : 1; ui.tsort = t.dataset.tsort; render(); return; }
+    if (t.dataset.collapse != null) { const k = t.dataset.collapse; if (ui.collapsed[k]) delete ui.collapsed[k]; else ui.collapsed[k] = true; render(); return; }
+    const d = deckOf(ui.deck);
+    if (t.id === "importBtn") return $("file").click();
+    if (t.id === "backupBtn") return backupModal();
+    if (t.id === "saveBtn") return save();
+    if (t.id === "newBtn") return askName("Nuevo mazo", "", "Crear", (name) => { const nd = { id: uid(), name, cmd: [], cards: [] }; S.decks.push(nd); ui.deck = nd.id; ui.filter = ""; $("q").value = ""; change(); });
+    if (!d) return;
+    if (t.dataset.card != null) { const c = d.cards[+t.dataset.card]; if (c) cardModal(d, c); return; }
+    if (t.id === "exportBtn") return exportDeck(d);
+    if (t.id === "addCardBtn") return addCardModal();
+    if (t.id === "renameBtn") return askName("Renombrar mazo", d.name, "Renombrar", (name) => { d.name = name; change(); });
+    if (t.id === "dupBtn") return askName("Duplicar mazo", d.name + " (copia)", "Duplicar", (name) => { const nd = JSON.parse(JSON.stringify(d)); nd.id = uid(); nd.name = name; S.decks.push(nd); ui.deck = nd.id; change(); });
+    if (t.id === "delDeckBtn") return confirmBox("Eliminar mazo", `Se eliminará “${d.name}” con sus ${count(d)} cartas.`, "Eliminar", () => { S.decks = S.decks.filter((x) => x !== d); ui.deck = null; change(); });
+    const row = t.closest("tr[data-i]");
+    if (!row) return;
+    const c = d.cards[+row.dataset.i];
+    const act = t.dataset.act;
+    if (act === "inc") { c.q++; change(); }
+    else if (act === "dec") { if (c.q > 1) { c.q--; change(); } else confirmBox("Quitar carta", `¿Quitar ${c.n} del mazo?`, "Quitar", () => { d.cards.splice(d.cards.indexOf(c), 1); change(); }); }
+    else if (act === "foil") { c.f = !c.f; change(); }
+    else if (act === "del") { d.cards.splice(d.cards.indexOf(c), 1); d.cmd = d.cmd.filter((x) => x !== c.n); change(); toast(`${c.n} eliminada`); }
+  });
+  app.addEventListener("mouseover", (e) => {
+    const r = e.target.closest(".row[data-card]");
+    const p = $("preview");
+    if (!r || !p || +r.dataset.card === previewIdx) return;
+    previewIdx = +r.dataset.card;
+    p.innerHTML = previewHtml(deckOf(ui.deck));
+    app.querySelectorAll(".row.sel").forEach((x) => x.classList.remove("sel"));
+    r.classList.add("sel");
+  });
+  app.addEventListener("keydown", (e) => {
+    const r = e.target.closest && e.target.closest("[data-ok], [data-flip], .row[data-card]");
+    if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); r.click(); }
+  });
+  app.addEventListener("change", (e) => {
+    const t = e.target, d = deckOf(ui.deck);
+    if (t.id === "file") { importFiles(t.files); t.value = ""; return; }
+    if (!d) return;
+    const row = t.closest("tr[data-i]");
+    if (row && t.dataset.field) {
+      const c = d.cards[+row.dataset.i];
+      if (t.dataset.field === "p") c.p = parseFloat(t.value.replace(/[^0-9.]/g, "")) || 0;
+      else c.e = t.value.trim();
+      change();
+    }
+  });
+  app.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t.id === "q") { ui.filter = t.value; render(); }
+    if (t.id === "deckFilter") {
+      const d = deckOf(ui.deck); d.localFilter = t.value;
+      const pos = t.selectionStart; render();
+      const nf = $("deckFilter"); nf.focus(); nf.setSelectionRange(pos, pos);
+    }
+  });
+  app.addEventListener("submit", (e) => {
+    if (e.target.id !== "addForm") return;
+    e.preventDefault();
+    const d = deckOf(ui.deck); if (!d) return;
+    const name = $("addN").value.trim(); if (!name) return;
+    const card = { q: Math.max(1, parseInt($("addQ").value, 10) || 1), n: name, e: $("addE").value.trim(), f: $("addF").checked, p: parseFloat($("addP").value.replace(/[^0-9.]/g, "")) || 0 };
+    const same = d.cards.find((c) => c.n.toLowerCase() === name.toLowerCase() && c.e === card.e && c.f === card.f);
+    if (same) same.q += card.q; else d.cards.push(card);
+    change(); lookupMissing();
+    toast(`${name} agregada a ${d.name}`);
+    $("addN").value = ""; $("addN").focus();
+  });
+  let dragDepth = 0;
+  window.addEventListener("dragenter", (e) => { if (![...(e.dataTransfer.types || [])].includes("Files")) return; e.preventDefault(); if (dragDepth++ === 0) { const x = document.createElement("div"); x.className = "drop"; x.id = "dropzone"; x.textContent = "Suelta tus CSV para importarlos"; document.body.appendChild(x); } });
+  window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); } });
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); if (e.dataTransfer.files.length && !$("imgModal")) importFiles(e.dataTransfer.files); });
+  document.addEventListener("click", (e) => {
+    // The menu re-renders on click, so a click that started inside it may come from a node that is gone now.
+    if (menuOpen && e.target.isConnected && !$("decklist").contains(e.target)) { menuOpen = false; renderSide(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menuOpen) { menuOpen = false; renderSide(); $("dmBtn").focus(); }
+    if (e.key === "Escape") $("overlay").innerHTML = "";
+    if ((e.ctrlKey || e.metaKey) && e.key === "s" && (localMode || (canPublish && dirty))) { e.preventDefault(); save(); }
+  });
+
+  // Theme: light or dark, remembered per browser. Without a saved choice, start from the system's.
+  const THEME_KEY = "boveda-mazos-theme";
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    const b = $("themeBtn"), label = t === "dark" ? "Cambiar a tema claro" : "Cambiar a tema oscuro";
+    b.innerHTML = icon(t === "dark" ? "sun" : "moon");
+    b.title = label; b.setAttribute("aria-label", label);
+  }
+  let theme = lsGet(THEME_KEY);
+  if (theme !== "dark" && theme !== "light") {
+    const host = document.documentElement.getAttribute("data-theme");
+    theme = host === "dark" || host === "light" ? host
+      : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  applyTheme(theme);
+  $("themeBtn").addEventListener("click", () => {
+    theme = theme === "dark" ? "light" : "dark";
+    lsSet(THEME_KEY, theme);
+    applyTheme(theme);
+  });
+
+  // Keep the sticky card preview just below the (now taller) top bar.
+  const topBar = document.querySelector(".top");
+  const syncTop = () => document.documentElement.style.setProperty("--top-h", topBar.offsetHeight + "px");
+  if (window.ResizeObserver) new ResizeObserver(syncTop).observe(topBar);
+  syncTop();
+
+  // ---------- Start ----------
+  function start(data) {
+    stored = { savedAt: data.savedAt };
+    S = data;
+    const draft = lsGet(DRAFT_KEY);
+    if (draft && draft.base === data.savedAt && draft.data) { S = draft.data; dirty = true; }
+    S.meta = S.meta || {};
+    // A draft keeps its own copy of the card data; bring in back faces added to the page after the draft was made.
+    for (const n in data.meta || {}) if (data.meta[n].b && S.meta[n] && !S.meta[n].b) S.meta[n].b = data.meta[n].b;
+    S.decks.forEach((d) => { if (!d.cmd) d.cmd = d.commander ? [d.commander] : []; delete d.commander; });
+    const savedUi = lsGet(UI_KEY);
+    if (savedUi) ui = Object.assign(ui, savedUi, { filter: "" });
+    ui.deck = null; // always open on the main page
+    render();
+    if (localMode) lookupMissing();
+  }
+  const embedded = JSON.parse($("deck-data").textContent);
+  if (embedded) start(embedded);
+  else fetch("decks.json", { cache: "no-store" }).then((r) => r.json()).then(start, () => {
+    $("view").innerHTML = `<div class="deckhead empty">No se pudieron cargar los mazos. Recarga la página.</div>`;
+  });
+
+  if (!localMode) {
+    window.claude.use("artifact").then((a) => { if (a) { artifactApi = a; canPublish = true; } else readOnly = true; if (S) renderStatus(); });
+    window.claude.use("downloads").then((dl) => { downloadsApi = dl; });
+    window.claude.use("assets").then((a) => { assetsApi = a; });
+  }
+})();
+</script>
