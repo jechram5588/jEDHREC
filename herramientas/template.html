@@ -52,9 +52,9 @@ button { cursor: pointer; }
 .dcard .curve { margin-top: 2px; }
 .dcard .bars { height: 88px; gap: 4px; }
 .dcard .bar { width: 24px; }
-.search { flex: 1 1 220px; min-width: 0; }
+.search { flex: 1 1 220px; min-width: 0; max-width: 340px; }
 .search input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
 .btn { border: 1px solid var(--line); background: var(--panel); padding: 6px 12px; border-radius: 6px; white-space: nowrap; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
@@ -66,7 +66,8 @@ button { cursor: pointer; }
 
 .layout { padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .decknav { flex-basis: 100%; display: flex; align-items: center; gap: 8px 16px; min-width: 0; border-top: 1px solid var(--line); padding-top: 8px; }
-.deckmenu { position: relative; flex: 0 1 auto; min-width: 0; max-width: 280px; }
+.deckmenu { position: relative; flex: 0 1 auto; min-width: 0; max-width: 480px; }
+.deckacts { display: flex; gap: 6px; margin-left: -8px; }
 .mtot { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 10px; }
 .dmbtn { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; border: 1px solid var(--line); background: var(--bg);
   border-radius: 6px; padding: 5px 12px; }
@@ -158,6 +159,7 @@ img.pip.sym { width: 19px; height: 19px; }
 .ibtn.add:hover { color: var(--accent-ink); }
 .ibtn.danger { border-color: var(--danger); }
 .ibtn.danger:hover { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+#saveBtn, #backupBtn { display: inline-flex; align-items: center; gap: 6px; }
 #themeBtn { display: inline-grid; place-items: center; padding-left: 9px; padding-right: 9px; }
 #themeBtn .ic { width: 18px; height: 18px; }
 .dd summary { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
@@ -316,7 +318,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 
 @media (max-width: 1150px) { .board { grid-template-columns: minmax(0, 1fr); } .preview { display: none; } }
 @media (max-width: 760px) {
-  .deckmenu { max-width: none; flex: 1 1 auto; }
+  .deckmenu { max-width: none; flex: 1 1 140px; }
+  .deckacts { flex: none; }
+  .search { max-width: none; }
   .deckname { font-size: 1.45rem; }
   .ggrid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--cw, 150px) * 0.73)), 1fr)); gap: 8px; }
   .cardmodal { grid-template-columns: minmax(0, 1fr); }
@@ -329,15 +333,17 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   <header class="top">
     <h1 class="brand"><button type="button" id="homeBtn" title="Ver todos los mazos">Jedhrec</button></h1>
     <div class="deckmenu" id="decklist"></div>
+    <div class="deckacts">
+      <input id="file" type="file" accept=".csv,.tsv,.txt,.json" multiple hidden>
+      <button class="btn ibtn" id="importBtn" type="button" title="Importar CSV" aria-label="Importar CSV"></button>
+      <button class="btn ibtn add" id="newBtn" type="button" title="Nuevo mazo" aria-label="Nuevo mazo"></button>
+    </div>
     <div class="search"><input id="q" type="search" placeholder="Buscar una carta en todos los mazos…" aria-label="Buscar carta en todos los mazos"></div>
     <div class="actions">
-      <input id="file" type="file" accept=".csv,.tsv,.txt,.json" multiple hidden>
-      <button class="btn" id="importBtn" type="button">Importar CSV</button>
-      <button class="btn" id="newBtn" type="button">Nuevo mazo</button>
-      <button class="btn" id="backupBtn" type="button" title="Guardar o recuperar todos tus mazos en un archivo">Respaldo</button>
-      <button class="btn" id="themeBtn" type="button" title="Cambiar entre tema claro y oscuro" aria-label="Cambiar entre tema claro y oscuro"></button>
       <span class="status" id="status"></span>
       <button class="btn primary" id="saveBtn" type="button" hidden>Guardar</button>
+      <button class="btn" id="backupBtn" type="button" title="Guardar o recuperar todos tus mazos en un archivo">Respaldo</button>
+      <button class="btn" id="themeBtn" type="button" title="Cambiar entre tema claro y oscuro" aria-label="Cambiar entre tema claro y oscuro"></button>
     </div>
   </header>
   <div class="layout">
@@ -599,9 +605,11 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           ${pipsHtml(ci)}<span><b>${esc(d.name)}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
         </button>`).join("")}</div>` : "";
     }).join("") || `<p class="status empty">Aún no hay mazos. Importa un CSV o crea uno nuevo.</p>`;
+    // The button names the commander in full (front face only) so it's recognizable; the deck name is the fallback.
+    const curLabel = cur ? (cur.cmd.length ? cur.cmd.map((n) => n.split(" // ")[0]).join(" + ") : cur.name) : "";
     $("decklist").innerHTML = `
       <button type="button" class="dmbtn" id="dmBtn" aria-expanded="${menuOpen}" aria-haspopup="true">
-        <span class="lbl">Mazos</span>${cur ? pipsHtml(deckColors(cur)) + `<b>${esc(cur.name)}</b>` : `<b>Elegir mazo</b>`}<span class="caret">▾</span>
+        <span class="lbl">Mazos</span>${cur ? pipsHtml(deckColors(cur)) + `<b title="${esc(curLabel)}">${esc(curLabel)}</b>` : `<b>Elegir mazo</b>`}<span class="caret">▾</span>
       </button>
       ${menuOpen ? `<div class="mega" role="menu">${mega}<div class="totals mtot" id="totals"></div></div>` : ""}`;
     const all = S.decks.reduce((a, d) => a + value(d), 0);
@@ -892,6 +900,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     cards: '<rect x="8" y="3" width="12" height="16" rx="2"/><path d="M5 6.5 4 7a2 2 0 0 0-.9 2.6l4.6 10.3a2 2 0 0 0 2.6 1l1.7-.8"/>',
     none: '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
     check: '<path d="M20 6 9 17l-5-5"/>',
+    import: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5M12 11v7M9 15l3 3 3-3"/>',
+    save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+    backup: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
+    newdeck: '<rect x="4" y="3" width="13" height="18" rx="2"/><path d="M10.5 9v6M7.5 12h6M20 7v12"/>',
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   };
   const icon = (k) => `<svg class="ic${k === "chev" ? " chev" : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
@@ -1350,6 +1362,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
   applyTheme(theme);
+  $("importBtn").innerHTML = icon("import");
+  $("newBtn").innerHTML = icon("newdeck");
+  $("saveBtn").innerHTML = icon("save") + "Guardar";
+  $("backupBtn").innerHTML = icon("backup") + "Respaldo";
   $("themeBtn").addEventListener("click", () => {
     theme = theme === "dark" ? "light" : "dark";
     lsSet(THEME_KEY, theme);

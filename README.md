@@ -38,10 +38,10 @@ Al importar, el nombre del mazo es la parte del nombre de archivo antes del prim
 Al abrir la página se ve **Mis mazos**: los totales de la colección y una tarjeta por mazo con su comandante, colores, N / 100, valor, foils, coste medio, cuántas cartas hay de cada tipo y la curva de maná. Con **Ordenar** (a la derecha) se ordenan por colores, número de colores, nombre, valor, coste medio o cantidad de foils. Al hacer clic en una tarjeta se abre el mazo. Para volver, pulsa el título **Jedhrec** arriba a la izquierda.
 
 ### Barra superior
-- **Mazos ▾**: menú con los mazos agrupados por identidad de color: Monocolor, Dos colores, Tres colores, Cuatro o más. Cada mazo muestra sus símbolos de color y el nombre de la combinación (Izzet, Jund, Temur…). Al pie aparecen los totales de la colección.
+- **Mazos ▾**: muestra el nombre completo del comandante del mazo abierto (o el nombre del mazo si no tiene comandante). Al abrirlo, un menú con los mazos agrupados por identidad de color: Monocolor, Dos colores, Tres colores, Cuatro o más. Cada mazo muestra sus símbolos de color y el nombre de la combinación (Izzet, Jund, Temur…). Al pie aparecen los totales de la colección.
+- Junto al menú, dos botones con icono (el nombre aparece al pasar el ratón): **Importar CSV** (también se pueden arrastrar los archivos a la página) y **Nuevo mazo**.
 - **Búsqueda**: busca una carta en todos los mazos y muestra en cuáles está, con qué edición y cuántas copias.
-- **Importar CSV**: también se pueden arrastrar los archivos a la página.
-- **Nuevo mazo**, **Respaldo**, **Tema** (claro u oscuro) y **Guardar** (ver [Dónde se guardan los cambios](#dónde-se-guardan-los-cambios)).
+- **Guardar** (ver [Dónde se guardan los cambios](#dónde-se-guardan-los-cambios)), **Respaldo** y **Tema** (claro u oscuro).
 
 ### Cabecera del mazo
 - Miniatura del comandante; al hacer clic se abre su ficha.
