@@ -47,14 +47,14 @@ Al abrir la página se ve **Mis mazos**: los totales de la colección y una tarj
 - Miniatura del comandante; al hacer clic se abre su ficha.
 - Contador **N / 100**: verde si el mazo tiene exactamente 100 cartas.
 - Valor, foils, coste medio (sin tierras), cartas distintas y cuántas hay de cada tipo (criaturas, tierras, instantáneos, conjuros, artefactos…), más la curva de maná (sin contar tierras).
-- Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil), **Exportar** (ver abajo), **Renombrar** (lápiz), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
+- Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local), **Exportar** (ver abajo), **Renombrar** (lápiz), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
 - Debajo, la barra con **Vista**, **Agrupar** y **Ordenar** (menús desplegables) y el filtro de cartas del mazo a la derecha.
 
 ### Exportar
 | Formato | Resultado |
 |---|---|
 | **CSV (Excel)** | El mismo formato de tus archivos, con columnas separadas por tabulador. |
-| **Moxfield** | Una lista de texto lista para importar en Moxfield: `1 Sol Ring (C16) 272 *F*`. El comandante va primero, `*F*` marca los foils y el código de edición sale del nombre de la edición. El número de colección solo se incluye cuando coincide con la impresión que se encontró en Scryfall. |
+| **Moxfield** | Una lista de texto lista para importar en Moxfield: `1 Sol Ring (C16) 272 *F*`. El comandante va primero, `*F*` marca los foils y el código de edición sale del nombre de la edición. La impresión (edición y número de colección) se toma, en este orden, del enlace de Scryfall de la carta (ficha), de la imagen elegida si viene de Scryfall (así el arte coincide), o de su edición; los números que faltan se buscan en Scryfall al abrir **Exportar** (solo en la versión local). Si alguna carta queda sin número, el diálogo lo indica: Moxfield elegirá un arte de esa edición. |
 
 Para pasar un mazo a Moxfield: crea un mazo nuevo (formato Commander), pulsa **Import** y pega la lista. Si Moxfield no reconoce solo al comandante, márcalo en el mazo.
 
@@ -76,7 +76,8 @@ El botón **Ocultar verificadas** (en la barra del mazo) esconde las ya marcadas
 Se abre al hacer clic en una carta. Desde ahí se puede:
 - Cambiar la cantidad, la edición, el precio y el foil.
 - Marcarla como **comandante** (se admiten dos, para partners).
-- Abrirla en Scryfall o buscarla en StarCityGames, o quitarla del mazo.
+- **Enlace de Scryfall**: se puede editar. Si la edición, el precio o la imagen no son los de tu carta, pega el enlace de la impresión correcta (`https://scryfall.com/card/…`) y pulsa **Cargar datos**: llena la edición, el precio (el foil si la carta es foil) y la imagen; se guardan al pulsar **Listo**. Si el enlace es de otra carta (por ejemplo, una que se importó con el nombre equivocado), también cambia el nombre, el tipo y el coste en todas las vistas, y si era el comandante lo sigue siendo. El enlace queda guardado en esa copia y también se usa para el número de colección al exportar a Moxfield. Solo en la versión local; en la línea el enlace se guarda pero la edición y el precio hay que escribirlos a mano.
+- Buscarla en StarCityGames, o quitarla del mazo.
 - **Cambiar imagen**, ver más abajo.
 
 ## Imágenes
@@ -90,7 +91,7 @@ Se abre al hacer clic en una carta. Desde ahí se puede:
 
 La versión en línea no puede conectarse a sitios externos, así que no puede consultar Scryfall.
 
-**Cambiar imagen:** el cambio se aplica a esa copia de la carta, porque una misma carta puede ser de ediciones distintas en cada mazo. Si la carta está en varios mazos, aparece una casilla para aplicarlo a todas las copias. Para copiar la imagen desde Scryfall: clic derecho sobre la imagen, «Copiar imagen», y luego Ctrl+V en la página.
+**Cambiar imagen:** el cambio se aplica a esa copia de la carta, porque una misma carta puede ser de ediciones distintas en cada mazo. Si la carta está en varios mazos, aparece una casilla para aplicarlo a todas las copias. Al elegir una impresión de la galería también cambian la edición, el precio y el enlace de Scryfall. Para copiar la imagen desde Scryfall: clic derecho sobre la imagen, «Copiar imagen», y luego Ctrl+V en la página.
 
 **Cartas de doble cara** (transformables, MDFC como los Pathways, y reversibles): en la versión local, su imagen lleva un botón ⟳ que le da la vuelta, en la cuadrícula, en la vista previa de la lista y en la ficha. Las cartas divididas (Life // Death) y las de aventura tienen una sola imagen y no llevan botón. La versión en línea todavía no muestra el reverso, porque sus hojas de imágenes solo incluyen el frente.
 
@@ -115,6 +116,7 @@ Los símbolos de maná son los SVG oficiales de Scryfall y van incluidos en la p
 - **Respaldo → Descargar respaldo** baja un archivo `jedhrec-respaldo-AAAA-MM-DD.json` con todos los mazos: comandantes, ediciones, precios, foils, imágenes cambiadas y los datos de las cartas. Guárdalo en una USB, la nube o el correo.
 - **Respaldo → Restaurar desde archivo…** (o arrastrar el `.json` a la página, o elegirlo con **Importar CSV**) **reemplaza todos los mazos** por los del respaldo, previa confirmación. En la versión en línea, pulsa **Guardar** después.
 - El diálogo muestra la fecha del último respaldo descargado en ese navegador.
+- **Respaldo → Borrar todo** (abajo en el diálogo) elimina todos los mazos para empezar desde cero, previa confirmación. Descarga un respaldo antes si quieres conservarlos. En la versión en línea, pulsa **Guardar** después. En la versión local queda vacía en ese navegador; si la abres en otro navegador o se borran los datos de navegación, vuelven a aparecer los mazos incluidos en el archivo `.html`.
 
 ## Regenerar la página
 

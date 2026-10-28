@@ -60,6 +60,9 @@ button { cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
 .btn.danger { color: var(--danger); }
+.wipe { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.wipe p { margin: 2px 0 0; }
+.wipe .btn { display: inline-flex; align-items: center; gap: 6px; }
 .btn.danger.solid { background: var(--danger); color: var(--panel); border-color: var(--danger); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .status { font-size: 0.85rem; color: var(--muted); }
@@ -175,6 +178,8 @@ img.pip.sym { width: 19px; height: 19px; }
 .addform label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); }
 .addform input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 0; width: 100%; color: var(--ink); font-size: 0.95rem; }
 .addform .f-n { grid-column: 2 / 4; }
+.addform .f-s { grid-column: 1 / 4; }
+.addform p.f-s { margin: -6px 0 0; }
 .addform .f-e { grid-column: 1 / 3; }
 .addform .f-f { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.95rem; grid-column: 1 / 4; }
 .addform .f-f input { width: auto; }
@@ -300,6 +305,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .cardmodal .f input { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--ink); }
 .cardmodal .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cardmodal a { color: var(--accent); }
+.sfrow { display: flex; gap: 6px; text-transform: none; letter-spacing: 0; }
+.sfrow input { flex: 1 1 auto; min-width: 0; }
+.cardmodal .sfrow a.btn { color: var(--ink); text-decoration: none; font-size: 0.95rem; }
+#sfMsg { margin: -4px 0 0; }
 .imgmodal { display: grid; gap: 14px; }
 .imgmodal h4 { margin: 0 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
 .imgmodal section { display: grid; gap: 6px; }
@@ -468,7 +477,41 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   }
   // StarCityGames search for the card (front face name for double-faced cards).
   const scgUrl = (n) => "https://starcitygames.com/search/?search_query=" + encodeURIComponent(n.split(" // ")[0]);
-  function scryUrl(n) {
+  // A printing from the Scryfall API as the card fields it sets: edition, price (foil-aware), image and link.
+  function printData(sc, foil) {
+    const iu = sc.image_uris || ((sc.card_faces || [])[0] || {}).image_uris || {};
+    const pr = sc.prices || {};
+    const p = parseFloat(foil ? pr.usd_foil || pr.usd_etched || pr.usd : pr.usd || pr.usd_foil || pr.usd_etched);
+    const face = (sc.card_faces || [sc])[0];
+    return { n: sc.name, e: sc.set_name, p: isNaN(p) ? null : p, im: iu.normal || "", imb: backOf(sc), su: (sc.scryfall_uri || "").split("?")[0],
+      meta: { t: face.type_line || sc.type_line || "", m: face.mana_cost != null ? face.mana_cost : sc.mana_cost || "", cmc: sc.cmc || 0,
+        ci: (sc.color_identity || []).join(""), img: iu.normal || "", u: (sc.scryfall_uri || "").split("?")[0] } };
+  }
+  // The printing behind a scryfall.com/card/<set>/<number> link. Rejects with "url" (not such a link), 404 or another error.
+  function fetchPrint(url) {
+    const mt = url.match(/scryfall\.com\/card\/([^/?#]+)\/([^/?#]+)/);
+    if (!mt) return Promise.reject("url");
+    return fetch(`https://api.scryfall.com/cards/${mt[1]}/${mt[2]}`).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+  }
+  const printError = (st) => st === "url" ? "Ese no es un enlace de una carta de Scryfall (https://scryfall.com/card/…)."
+    : st === 404 ? "Scryfall no encontró esa carta. Revisa el enlace."
+    : "Desde aquí no se puede consultar Scryfall. Escribe los datos a mano.";
+  // A link to a different card renames this copy (and the commander entry pointing at it) and brings that card's data.
+  const otherCard = (t, x) => x.n && norm(t.n.split(" // ")[0]) !== norm(x.n.split(" // ")[0]);
+  function applyPrint(t, x) {
+    if (otherCard(t, x)) {
+      const old = t.n;
+      if (!S.meta[x.n]) S.meta[x.n] = x.meta;
+      S.decks.filter((d) => d.cards.includes(t)).forEach((d) => { d.cmd = d.cmd.map((n) => (n === old ? x.n : n)); });
+      t.n = x.n;
+    }
+    t.e = x.e; t.su = x.su;
+    if (x.p != null) t.p = x.p;
+    if (x.im) t.im = x.im;
+    if (x.imb) t.imb = x.imb; else delete t.imb;
+  }
+  function scryUrl(n, c) {
+    if (c && c.su) return c.su;
     const m = meta(n);
     return m && m.u ? m.u : "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"');
   }
@@ -908,16 +951,41 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   };
   const icon = (k) => `<svg class="ic${k === "chev" ? " chev" : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
+  let addPrint = null; // printing loaded in the add form from a Scryfall link
   function addCardModal() {
+    addPrint = null;
     modal(`<h3>Agregar carta</h3>
       <form class="addform" id="addForm" autocomplete="off">
+        <label class="f-s">Enlace de Scryfall (opcional)<span class="sfrow"><input id="addS" type="url" placeholder="https://scryfall.com/card/…" aria-describedby="addMsg">
+          <button class="btn" data-add="load" type="button">Cargar</button></span></label>
+        <p class="status f-s" id="addMsg">Pega el enlace de la impresión exacta y pulsa Cargar: llena el nombre, la edición, el precio y la imagen.</p>
         <label class="f-q">Cantidad<input id="addQ" type="number" min="1" value="1"></label>
         <label class="f-n">Nombre<input id="addN" type="text" placeholder="Nombre de la carta (en inglés)" required autofocus></label>
         <label class="f-e">Edición<input id="addE" type="text" placeholder="Opcional"></label>
         <label class="f-p">Precio<input id="addP" type="text" inputmode="decimal" placeholder="$0.00"></label>
         <label class="f-f"><input id="addF" type="checkbox"> Foil</label>
         <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn primary" type="submit">Agregar</button></div>
-      </form>`, (m, close) => { m.querySelector("[data-no]").onclick = close; });
+      </form>`, (m, close) => {
+        m.querySelector("[data-no]").onclick = close;
+        const msg = m.querySelector("#addMsg");
+        let sc = null;
+        const price = () => { const x = printData(sc, m.querySelector("#addF").checked); if (x.p != null) m.querySelector("#addP").value = x.p.toFixed(2); };
+        const load = () => {
+          msg.textContent = "Consultando Scryfall…";
+          fetchPrint(m.querySelector("#addS").value.trim()).then((r) => {
+            sc = r; addPrint = printData(sc, false);
+            m.querySelector("#addN").value = addPrint.n;
+            m.querySelector("#addE").value = addPrint.e;
+            price();
+            msg.textContent = `Cargado: ${addPrint.n} · ${addPrint.e} #${sc.collector_number}, con su imagen. Pulsa Agregar.`;
+            m.querySelector("button.primary").focus();
+          }, (st) => { sc = null; addPrint = null; msg.textContent = printError(st); });
+        };
+        m.querySelector("[data-add=load]").onclick = load;
+        m.querySelector("#addS").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); load(); } });
+        m.querySelector("#addS").addEventListener("paste", () => setTimeout(load, 0));
+        m.querySelector("#addF").addEventListener("change", () => { if (sc) price(); });
+      });
   }
   function modal(html, wire, cls) {
     const ov = $("overlay");
@@ -957,12 +1025,18 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           <label class="f">Precio (USD)<input type="text" id="mP" inputmode="decimal" value="${c.p.toFixed(2)}"></label>
           <label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>
           ${o ? `<p class="status">También en: ${esc(o.join(", "))}</p>` : ""}
-          <div class="inline"><a href="${esc(scryUrl(c.n))}" target="_blank" rel="noopener">Ver en Scryfall ↗</a>
-            <a href="${esc(scgUrl(c.n))}" target="_blank" rel="noopener">Ver en StarCityGames ↗</a></div>
+          <label class="f">Enlace de Scryfall<span class="sfrow"><input type="url" id="mS" value="${esc(scryUrl(c.n, c))}" placeholder="https://scryfall.com/card/…" aria-describedby="sfMsg">
+            <button class="btn" data-m="sfload" type="button">Cargar datos</button><a class="btn" id="sfOpen" href="${esc(scryUrl(c.n, c))}" target="_blank" rel="noopener" title="Abrir en Scryfall">Abrir ↗</a></span></label>
+          <p class="status" id="sfMsg">Si la edición, el precio o la imagen no son los de tu carta, pega el enlace de la impresión correcta y pulsa Cargar datos.</p>
+          <div class="inline"><a href="${esc(scgUrl(c.n))}" target="_blank" rel="noopener">Ver en StarCityGames ↗</a></div>
           <div class="row2"><button class="btn danger" data-m="del" type="button">Quitar del mazo</button><button class="btn primary" data-m="ok" type="button" autofocus>Listo</button></div>
         </div>
       </div>`, (el, close) => {
+      let loaded = null; // printing loaded from the link, applied on Listo
       const apply = () => {
+        if (loaded) applyPrint(c, loaded);
+        const su = el.querySelector("#mS").value.trim();
+        if (!su) delete c.su; else if (su !== scryUrl(c.n, c)) c.su = su;
         c.e = el.querySelector("#mE").value.trim();
         c.p = parseFloat(el.querySelector("#mP").value.replace(/[^0-9.]/g, "")) || 0;
         const want = el.querySelector("#mC").checked;
@@ -974,6 +1048,19 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         const a = b.dataset.m;
         if (a === "inc") { c.q++; el.querySelector("#mq").textContent = c.q; }
         if (a === "dec" && c.q > 1) { c.q--; el.querySelector("#mq").textContent = c.q; }
+        if (a === "sfload") {
+          const msg = el.querySelector("#sfMsg");
+          msg.textContent = "Consultando Scryfall…";
+          fetchPrint(el.querySelector("#mS").value.trim()).then((sc) => {
+            loaded = printData(sc, c.f);
+            el.querySelector("#mE").value = loaded.e;
+            if (loaded.p != null) el.querySelector("#mP").value = loaded.p.toFixed(2);
+            el.querySelector("#mS").value = el.querySelector("#sfOpen").href = loaded.su;
+            if (loaded.im) el.querySelector(".cardside").firstElementChild.outerHTML = artHtml(c.n, "", { ...c, im: loaded.im, imb: loaded.imb }, true);
+            if (otherCard(c, loaded)) el.querySelector(".fields h3").textContent = loaded.n;
+            msg.textContent = `${otherCard(c, loaded) ? `Otra carta: ${loaded.n} (el nombre cambiará). ` : ""}Cargado: ${loaded.e} #${sc.collector_number}${loaded.p != null ? " · " + money(loaded.p) : " · sin precio en Scryfall"}, con su imagen. Pulsa Listo para guardarlo.`;
+          }, (st) => { msg.textContent = printError(st) + (st === "url" || st === 404 ? "" : " El enlace se guardará igual."); });
+        }
         if (a === "foil") { c.f = !c.f; b.classList.toggle("on", c.f); b.textContent = c.f ? "Foil" : "No foil"; }
         if (a === "verify") { if (c.ok) delete c.ok; else c.ok = true; apply(); close(); change(); }
         if (a === "ok") { apply(); close(); change(); }
@@ -998,6 +1085,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         ${copies > 1 ? `<label class="allrow"><input type="checkbox" id="allDecks"> Usar esta imagen en las ${copies} copias de esta carta en todos tus mazos</label>` : ""}
         <div class="row2">${c.im ? `<button class="btn" data-i="reset" type="button">Restaurar imagen original</button>` : ""}<button class="btn" data-i="close" type="button">Cerrar</button></div>
       </div>`, (el, close) => {
+      let found = [];
       const targets = () => (el.querySelector("#allDecks") && el.querySelector("#allDecks").checked ? sameName() : [c]);
       const setImg = (url, back) => {
         targets().forEach((t) => { if (url) t.im = url; else delete t.im; if (back) t.imb = back; else delete t.imb; });
@@ -1014,7 +1102,13 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       };
       el.addEventListener("click", (e) => {
         const b = e.target.closest("[data-i], [data-print]"); if (!b) return;
-        if (b.dataset.print) return setImg(b.dataset.print, b.dataset.back);
+        if (b.dataset.print) {
+          // A Scryfall printing brings its edition, price and link along with the image.
+          const pr = found[+b.dataset.k];
+          targets().forEach((t) => applyPrint(t, printData(pr.sc, t.f)));
+          close(); change();
+          return toast(`${pr.set} #${pr.num}: imagen, edición y precio cambiados` + (localMode ? "" : ". Pulsa Guardar para conservarlo."));
+        }
         if (b.dataset.i === "file") el.querySelector("#imgFile").click();
         if (b.dataset.i === "reset") setImg(null);
         if (b.dataset.i === "close") close();
@@ -1041,11 +1135,12 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         .then((r) => r.json()).then((res) => {
           const prints = (res.data || []).map((p) => {
             const iu = p.image_uris || ((p.card_faces || [])[0] || {}).image_uris || {};
-            return { small: iu.small, normal: iu.normal, back: backOf(p), set: p.set_name, num: p.collector_number };
+            return { small: iu.small, normal: iu.normal, back: backOf(p), set: p.set_name, num: p.collector_number, sc: p };
           }).filter((p) => p.normal);
           if (!prints.length) throw new Error("none");
-          el.querySelector("#prints").innerHTML = prints.map((p) => `
-            <button type="button" class="pbtn${p.normal === c.im ? " on" : ""}" data-print="${esc(p.normal)}"${p.back ? ` data-back="${esc(p.back)}"` : ""} title="${esc(p.set)} #${esc(p.num)}">
+          found = prints;
+          el.querySelector("#prints").innerHTML = prints.map((p, k) => `
+            <button type="button" class="pbtn${p.normal === c.im ? " on" : ""}" data-print="1" data-k="${k}" title="${esc(p.set)} #${esc(p.num)}">
               <img class="art" src="${esc(p.small)}" alt="${esc(c.n)}, ${esc(p.set)}" loading="lazy"><b>${esc(p.set)}</b><span>#${esc(p.num)}</span>
             </button>`).join("");
         }).catch(() => {
@@ -1072,26 +1167,58 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   function toDataUrl(blob) {
     return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob); });
   }
-  // Moxfield import line: "1 Sol Ring (C16) 272 *F*". The collector number comes from the Scryfall
-  // printing we matched, and is only used when that printing is from the card's own edition.
+  // Moxfield import line: "1 Sol Ring (C16) 272 *F*". The printing (set + collector number), most exact first:
+  // the card's own Scryfall link; the Scryfall printing its chosen image comes from (so the art matches);
+  // its edition, with the number from the card data when that's the same set, or looked up in Scryfall (resolvePrints).
   const SETS = (() => { try { return JSON.parse($("set-codes").textContent) || {}; } catch (e) { return {}; } })();
+  const printCache = {}; // Scryfall id or "name|set" → [SET, number]
+  const fromLink = (u) => { const p = (u || "").match(/\/card\/([^/]+)\/([^/?#]+)/); return p ? [p[1].toUpperCase(), decodeURIComponent(p[2])] : null; };
+  const imageId = (u) => { const p = (u || "").match(/cards\.scryfall\.io\/[^/]+\/(?:front|back)\/[0-9a-f]\/[0-9a-f]\/([0-9a-f-]{36})/); return p ? p[1] : null; };
+  const front = (n) => n.split(" // ")[0];
+  function printingOf(c) {
+    if (c.su) { const x = fromLink(c.su); if (x) return x; }
+    const id = imageId(c.im);
+    if (id) return printCache[id] || null;
+    const code = SETS[c.e.toLowerCase()];
+    if (!code) return null;
+    const m = meta(c.n), x = m && fromLink(m.u);
+    if (x && x[0] === code) return x;
+    return printCache[norm(front(c.n)) + "|" + code] || [code, ""];
+  }
+  // Fills printCache for the cards whose printing isn't known yet. Where Scryfall can't be reached, it resolves with nothing new.
+  function resolvePrints(d) {
+    const want = new Map();
+    for (const c of d.cards) {
+      if (c.su && fromLink(c.su)) continue;
+      const id = imageId(c.im);
+      if (id) { if (!printCache[id]) want.set(id, { id }); continue; }
+      const x = printingOf(c);
+      if (x && !x[1]) want.set(norm(front(c.n)) + "|" + x[0], { name: front(c.n), set: x[0].toLowerCase() });
+    }
+    const ids = [...want.values()], chunks = [];
+    for (let i = 0; i < ids.length; i += 75) chunks.push(ids.slice(i, i + 75));
+    return chunks.reduce((p, chunk) => p.then(() => fetch("https://api.scryfall.com/cards/collection", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ identifiers: chunk }),
+    }).then((r) => r.json()).then((res) => {
+      for (const sc of res.data || []) {
+        const x = [sc.set.toUpperCase(), sc.collector_number];
+        printCache[sc.id] = x;
+        printCache[norm(front(sc.name)) + "|" + x[0]] = printCache[norm(front(sc.name)) + "|" + x[0]] || x;
+      }
+    })), Promise.resolve()).then(() => ids.length, () => ids.length);
+  }
   function moxLine(c) {
     const halves = c.n.split(" // ");
     const name = halves.length === 2 && halves[0] === halves[1] ? halves[0] : c.n;
-    const code = SETS[c.e.toLowerCase()];
-    const m = meta(c.n);
-    let num = "";
-    if (code && m && m.u) {
-      const p = m.u.match(/\/card\/([^/]+)\/([^/]+)/);
-      if (p && p[1].toUpperCase() === code) num = " " + decodeURIComponent(p[2]);
-    }
-    return `${c.q} ${name}${code ? ` (${code})${num}` : ""}${c.f ? " *F*" : ""}`;
+    const x = printingOf(c);
+    return `${c.q} ${name}${x ? ` (${x[0]})${x[1] ? " " + x[1] : ""}` : ""}${c.f ? " *F*" : ""}`;
   }
   function toMoxfield(d) {
     const cmd = d.cards.filter((c) => isCmd(d, c.n));
     const rest = d.cards.filter((c) => !isCmd(d, c.n)).sort((a, b) => a.n.localeCompare(b.n));
     return [...cmd, ...rest].map(moxLine).join("\n") + "\n";
   }
+  const noNumber = (d) => d.cards.filter((c) => { const x = printingOf(c); return !x || !x[1]; }).length;
   function exportDeck(d) {
     const base = d.name.replace(/[^\w\- ]+/g, "") || "mazo";
     const formats = {
@@ -1116,6 +1243,17 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           m.querySelectorAll("[data-fmt]").forEach((b) => b.classList.toggle("on", b.dataset.fmt === cur));
         };
         show();
+        // Look up the collector numbers we don't have, then refresh the Moxfield list.
+        const moxHelp = formats.mox.help;
+        formats.mox.help = "Buscando en Scryfall la impresión exacta de cada carta… " + moxHelp;
+        if (cur === "mox") show();
+        resolvePrints(d).then(() => {
+          if (!document.body.contains(m)) return;
+          const left = noNumber(d);
+          formats.mox.text = toMoxfield(d);
+          formats.mox.help = (left ? `${left} carta${left > 1 ? "s" : ""} sin número de colección (Moxfield elegirá un arte de esa edición; pega su enlace de Scryfall en la ficha para fijarlo). ` : "") + moxHelp;
+          if (cur === "mox") show();
+        });
         m.querySelectorAll("[data-fmt]").forEach((b) => (b.onclick = () => { cur = b.dataset.fmt; show(); }));
         m.querySelector("[data-no]").onclick = close;
         m.querySelector("[data-copy]").onclick = () => {
@@ -1172,7 +1310,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       <p>Descarga un archivo con tus ${n} mazos (${cards} cartas): comandantes, ediciones, precios, foils e imágenes cambiadas. Guárdalo donde quieras (USB, nube, correo) y restáuralo aquí en cualquier computadora o navegador.</p>
       <p class="status">${last ? "Último respaldo descargado: " + esc(fmtDate(last)) : "Aún no has descargado ningún respaldo."}</p>
       <input type="file" id="backupFile" accept=".json,application/json" hidden>
-      <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn" data-restore type="button">Restaurar desde archivo…</button><button class="btn primary" data-dl type="button">Descargar respaldo</button></div>`,
+      <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn" data-restore type="button">Restaurar desde archivo…</button><button class="btn primary" data-dl type="button">Descargar respaldo</button></div>
+      <div class="wipe"><div><b>Empezar desde cero</b><p class="status">Borra todos los mazos de esta página. Descarga antes un respaldo si quieres conservarlos.</p></div>
+        <button class="btn danger" data-wipe type="button"${n ? "" : " disabled"}>${icon("trash")}Borrar todo</button></div>`,
       (m, close) => {
         m.querySelector("[data-no]").onclick = close;
         m.querySelector("[data-dl]").onclick = () => {
@@ -1183,6 +1323,15 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           close();
         };
         m.querySelector("[data-restore]").onclick = () => m.querySelector("#backupFile").click();
+        m.querySelector("[data-wipe]").onclick = () => {
+          close();
+          confirmBox("Borrar todo", `Se eliminarán tus ${n} mazos (${cards} cartas). Esto no se puede deshacer, salvo restaurando un respaldo.`, "Borrar todo", () => {
+            S.decks = [];
+            ui.deck = null; ui.filter = ""; $("q").value = ""; previewIdx = null;
+            change();
+            toast("Todo borrado" + (localMode ? "" : ". Pulsa Guardar para conservarlo."));
+          });
+        };
         m.querySelector("#backupFile").onchange = (e) => { const f = e.target.files[0]; if (f) { close(); restoreBackup(f); } };
       });
   }
@@ -1327,11 +1476,20 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const d = deckOf(ui.deck); if (!d) return;
     const name = $("addN").value.trim(); if (!name) return;
     const card = { q: Math.max(1, parseInt($("addQ").value, 10) || 1), n: name, e: $("addE").value.trim(), f: $("addF").checked, p: parseFloat($("addP").value.replace(/[^0-9.]/g, "")) || 0 };
+    // From a Scryfall link (and the name wasn't changed after): keep its image, link and card data.
+    const x = addPrint && norm(addPrint.n) === norm(name) ? addPrint : null;
+    if (x) {
+      if (!S.meta[x.n]) S.meta[x.n] = x.meta;
+      card.su = x.su; if (x.im) card.im = x.im; if (x.imb) card.imb = x.imb;
+    }
     const same = d.cards.find((c) => c.n.toLowerCase() === name.toLowerCase() && c.e === card.e && c.f === card.f);
     if (same) same.q += card.q; else d.cards.push(card);
     change(); lookupMissing();
     toast(`${name} agregada a ${d.name}`);
-    $("addN").value = ""; $("addN").focus();
+    addPrint = null;
+    ["addS", "addN", "addE", "addP"].forEach((k) => { $(k).value = ""; });
+    $("addMsg").textContent = "Pega el enlace de la impresión exacta y pulsa Cargar: llena el nombre, la edición, el precio y la imagen.";
+    $("addN").focus();
   });
   let dragDepth = 0;
   window.addEventListener("dragenter", (e) => { if (![...(e.dataTransfer.types || [])].includes("Files")) return; e.preventDefault(); if (dragDepth++ === 0) { const x = document.createElement("div"); x.className = "drop"; x.id = "dropzone"; x.textContent = "Suelta tus CSV para importarlos"; document.body.appendChild(x); } });
