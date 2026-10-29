@@ -42,14 +42,15 @@ Al importar se abre una ventana para confirmar el nombre y elegir el tipo: **Maz
 |---|---|---|
 | Contador | `N / 100` (verde con 100 exactas) | `N cartas` |
 | Comandante | Se adivina por el nombre del mazo y se puede marcar en la ficha | No tiene |
+| Miniatura | La del comandante | La de la **carta de portada**: en la ficha de cualquier carta, **Usar como portada**. Solo es la imagen; no cambia colores ni la exportación |
 | Menú **Mazos ▾** | Agrupado por número de colores | En su propia columna, **Listas de cartas** |
 
-El tipo se elige al importar, al crear un mazo nuevo, o después con el lápiz (**Editar mazo**). Al pasar un mazo a lista se quita su comandante; al volver a Commander se adivina otra vez por el nombre.
+El tipo se elige al importar, al crear un mazo nuevo, o después con el lápiz (**Editar mazo**). Al pasar un mazo a lista se quita su comandante y pasa a ser la portada; al volver a Commander se adivina otra vez por el nombre.
 
 ## Uso
 
 ### Página principal
-Al abrir la página se ve **Mis mazos**: los totales de la colección y una tarjeta por mazo con su comandante, colores, N / 100, valor, foils, coste medio, cuántas cartas hay de cada tipo y la curva de maná. Con **Ordenar** (a la derecha) se ordenan por colores, número de colores, nombre, valor, coste medio o cantidad de foils. Al hacer clic en una tarjeta se abre el mazo. Para volver, pulsa el título **Jedhrec** arriba a la izquierda.
+Al abrir la página se ven dos secciones: **Mis mazos** (los de Commander) y, debajo, **Listas de cartas** (solo si tienes alguna). Cada una muestra sus totales y una tarjeta por mazo con su comandante, colores, N / 100, valor, foils, coste medio, y cuántas cartas hay de cada tipo (la curva de maná se ve al abrir el mazo). Con **Ordenar** (a la derecha) se ordenan las dos secciones por colores, número de colores, nombre, valor, coste medio o cantidad de foils. Al hacer clic en una tarjeta se abre el mazo. Para volver, pulsa el título **Jedhrec** arriba a la izquierda.
 
 ### Barra superior
 - **Mazos ▾**: muestra el nombre completo del comandante del mazo abierto (o el nombre del mazo si no tiene comandante). Al abrirlo, un menú con los mazos agrupados por identidad de color: Monocolor, Dos colores, Tres colores, Cuatro o más. Cada mazo muestra sus símbolos de color y el nombre de la combinación (Izzet, Jund, Temur…). Al pie aparecen los totales de la colección.
@@ -91,6 +92,7 @@ Se abre al hacer clic en una carta. Desde ahí se puede:
 - Cambiar la cantidad, la edición, el precio y el foil.
 - Marcarla como **comandante** (se admiten dos, para partners).
 - **Enlace de Scryfall**: se puede editar. Si la edición, el precio o la imagen no son los de tu carta, pega el enlace de la impresión correcta (`https://scryfall.com/card/…`) y pulsa **Cargar datos**: llena la edición, el precio (el foil si la carta es foil) y la imagen; se guardan al pulsar **Listo**. Si el enlace es de otra carta (por ejemplo, una que se importó con el nombre equivocado), también cambia el nombre, el tipo y el coste en todas las vistas, y si era el comandante lo sigue siendo. El enlace queda guardado en esa copia y también se usa para el número de colección al exportar a Moxfield. Solo en la versión local; en la línea el enlace se guarda pero la edición y el precio hay que escribirlos a mano.
+- **Mover a** otro mazo o lista: eliges el destino y cuántas copias (si tiene más de una). **Mover** la quita de este mazo; **Copiar** la deja en los dos. Se lleva su edición, precio, foil, imagen, enlace y la marca de verificada; si el destino ya tiene esa carta con la misma edición y foil, solo suma copias. Si era el comandante y se mueven todas sus copias, el mazo queda sin comandante.
 - Buscarla en StarCityGames, o quitarla del mazo.
 - **Cambiar imagen**, ver más abajo.
 

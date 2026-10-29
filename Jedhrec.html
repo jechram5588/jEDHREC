@@ -37,6 +37,7 @@ button { cursor: pointer; }
 .brand button { border: 0; background: transparent; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
 .brand button:hover { color: var(--accent); }
 .homehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; }
+.homehead.next { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
 .homehead h2 { margin: 0; font-family: var(--f-display); font-size: 1.6rem; }
 .homehead .hsort { margin-left: auto; align-self: center; }
 .homehead .dd .menu { left: auto; right: 0; min-width: 220px; }
@@ -50,9 +51,6 @@ button { cursor: pointer; }
 .dcard h3 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; line-height: 1.15; }
 .dcard .cmdr { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dcard .cmdr small { color: var(--muted); font-size: 0.85rem; }
-.dcard .curve { margin-top: 2px; }
-.dcard .bars { height: 88px; gap: 4px; }
-.dcard .bar { width: 24px; }
 .search { flex: 1 1 220px; min-width: 0; max-width: 340px; }
 .search input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
@@ -310,6 +308,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .cardmodal .f { display: grid; gap: 3px; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .cardmodal .f input { text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--ink); }
 .cardmodal .inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.moverow { padding-top: 10px; border-top: 1px solid var(--line); }
+.moverow select, .moverow input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); min-width: 0; }
+.moverow select { flex: 1 1 160px; }
+.moverow input { width: 64px; }
 .cardmodal a { color: var(--accent); }
 .sfrow { display: flex; gap: 6px; text-transform: none; letter-spacing: 0; }
 .sfrow input { flex: 1 1 auto; min-width: 0; }
@@ -407,10 +409,13 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     `<label class="opt"><input type="radio" name="kind" value="${k}"${cur === k ? " checked" : ""}> ${label}</label>`).join("")}</div>`;
   const kindOf = (m) => m.querySelector('input[name="kind"]:checked').value;
   // Switching to a list drops the commander; switching back guesses it again from the deck name.
+  // The commander becomes the list's cover card.
   function setKind(d, k) {
-    if (k === "list") { d.kind = "list"; d.cmd = []; }
-    else { if (isList(d)) d.cmd = guessCommander(d.name, d.cards); delete d.kind; }
+    if (k === "list") { if (!isList(d) && d.cmd.length) d.cover = d.cmd[0]; d.kind = "list"; d.cmd = []; }
+    else { if (isList(d)) d.cmd = guessCommander(d.name, d.cards); delete d.kind; delete d.cover; }
   }
+  // Cards shown as the deck's thumbnail: its commander(s), or a list's cover card.
+  const thumbNames = (d) => isList(d) ? (d.cover ? [d.cover] : []) : d.cmd;
   const sizePill = (d, n) => isList(d) ? `<span class="pill info num">${n} cartas</span>` : `<span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span>`;
 
   function change() {
@@ -520,7 +525,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     if (otherCard(t, x)) {
       const old = t.n;
       if (!S.meta[x.n]) S.meta[x.n] = x.meta;
-      S.decks.filter((d) => d.cards.includes(t)).forEach((d) => { d.cmd = d.cmd.map((n) => (n === old ? x.n : n)); });
+      S.decks.filter((d) => d.cards.includes(t)).forEach((d) => { d.cmd = d.cmd.map((n) => (n === old ? x.n : n)); if (d.cover === old) d.cover = x.n; });
       t.n = x.n;
     }
     t.e = x.e; t.su = x.su;
@@ -785,28 +790,30 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const by = HOME_SORTS[ui.hsort] || HOME_SORTS.color;
     const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
       .sort((a, b) => by(a, b) || a.d.name.localeCompare(b.d.name));
-    const all = S.decks.reduce((a, d) => a + value(d), 0);
-    const cards = S.decks.reduce((a, d) => a + count(d), 0);
-    v.innerHTML = `
-      <div class="homehead">
-        <h2>Mis mazos</h2>
-        <div class="statline"><span><b class="num">${S.decks.length}</b> mazos</span><span><b class="num">${cards}</b> cartas</span><span><b class="num">${money(all)}</b> valor total</span></div>
-        <div class="hsort">${seg("hsort", "Ordenar", [["color", "Colores", "palette"], ["ncolors", "Número de colores", "circles"], ["name", "Nombre", "az"], ["value", "Valor (mayor primero)", "dollar"], ["cmc", "Coste medio (menor primero)", "bolt"], ["foils", "Foils (más primero)", "sparkle"]], "sort")}</div>
+    const sortMenu = `<div class="hsort">${seg("hsort", "Ordenar", [["color", "Colores", "palette"], ["ncolors", "Número de colores", "circles"], ["name", "Nombre", "az"], ["value", "Valor (mayor primero)", "dollar"], ["cmc", "Coste medio (menor primero)", "bolt"], ["foils", "Foils (más primero)", "sparkle"]], "sort")}</div>`;
+    // Commander decks first, then card lists, each with its own heading and totals; the sort menu goes on the first one shown.
+    const sections = [["Mis mazos", "mazos", items.filter((x) => !isList(x.d))], ["Listas de cartas", "listas", items.filter((x) => isList(x.d))]]
+      .filter(([, , list]) => list.length);
+    v.innerHTML = sections.map(([title, unit, list], i) => `
+      <div class="homehead${i ? " next" : ""}">
+        <h2>${title}</h2>
+        <div class="statline"><span><b class="num">${list.length}</b> ${unit}</span><span><b class="num">${list.reduce((a, x) => a + count(x.d), 0)}</b> cartas</span><span><b class="num">${money(list.reduce((a, x) => a + value(x.d), 0))}</b> valor total</span></div>
+        ${i ? "" : sortMenu}
       </div>
-      <div class="decks">${items.map(({ d, ci }) => {
+      <div class="decks">${list.map(({ d, ci }) => {
         const n = count(d), { foils, typeCounts, avgCmc } = deckStats(d);
         const cmds = d.cmd.map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
+        const thumbs = thumbNames(d).map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
         return `<button type="button" class="dcard" data-deck="${d.id}">
-          <div class="thumbs">${cmds.length ? cmds.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>
+          <div class="thumbs">${thumbs.length ? thumbs.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>
           <div class="info">
             <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}${sizePill(d, n)}</div>
             <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : isList(d) ? "Lista de cartas" : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
             <div class="statline"><span><b class="num">${money(value(d))}</b> valor</span><span><b class="num">${foils}</b> foils</span><span><b class="num">${avgCmc}</b> coste medio</span></div>
             <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
-            ${curveHtml(d)}
           </div>
         </button>`;
-      }).join("")}</div>`;
+      }).join("")}</div>`).join("");
   }
   function renderDeck() {
     const d = deckOf(ui.deck);
@@ -816,20 +823,20 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const { foils, typeCounts, avgCmc } = deckStats(d);
     const okCount = d.cards.filter((c) => c.ok).length;
     const rows = sortedRows(d);
-    const cmdIdx = d.cmd.map((x) => d.cards.findIndex((c) => c.n === x)).filter((i) => i >= 0);
+    const cmdIdx = thumbNames(d).map((x) => d.cards.findIndex((c) => c.n === x)).filter((i) => i >= 0);
     let body;
     if (ui.view === "table") body = tableHtml(d, rows);
     else if (ui.view === "grid") body = gridHtml(d, rows);
     else body = listHtml(d, rows);
     const showPreview = ui.view === "list";
     if (previewIdx == null || !d.cards[previewIdx]) {
-      const ci = d.cards.findIndex((c) => isCmd(d, c.n));
+      const ci = d.cards.findIndex((c) => thumbNames(d).includes(c.n));
       previewIdx = ci >= 0 ? ci : d.cards.length ? 0 : null;
     }
     v.innerHTML = `
       <section class="deckhead compact">
         <div class="cmdthumbs">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
-          : isList(d) ? `<span class="cmdthumb none" title="Lista de cartas">${icon("list")}</span>` : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
+          : isList(d) ? `<span class="cmdthumb none" title="Sin portada: abre una carta y márcala como portada">${icon("list")}</span>` : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
         <div class="dh-main">
           <div class="titlerow">
             <h2 class="deckname">${esc(d.name)}</h2>
@@ -1104,12 +1111,19 @@ td.type { color: var(--muted); font-size: 0.85rem; }
             <button type="button" class="foilbtn${c.f ? " on" : ""}" data-m="foil">${c.f ? "Foil" : "No foil"}</button></div>
           <label class="f">Edición<input type="text" id="mE" value="${esc(c.e)}"></label>
           <label class="f">Precio (USD)<input type="text" id="mP" inputmode="decimal" value="${c.p.toFixed(2)}"></label>
-          ${isList(d) ? "" : `<label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>`}
+          ${isList(d) ? `<label class="inline"><input type="checkbox" id="mCov"${d.cover === c.n ? " checked" : ""}> Usar como portada de ${esc(d.name)}</label>`
+            : `<label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>`}
           ${o ? `<p class="status">También en: ${esc(o.join(", "))}</p>` : ""}
           <label class="f">Enlace de Scryfall<span class="sfrow"><input type="url" id="mS" value="${esc(scryUrl(c.n, c))}" placeholder="https://scryfall.com/card/…" aria-describedby="sfMsg">
             <button class="btn" data-m="sfload" type="button">Cargar datos</button><a class="btn" id="sfOpen" href="${esc(scryUrl(c.n, c))}" target="_blank" rel="noopener" title="Abrir en Scryfall">Abrir ↗</a></span></label>
           <p class="status" id="sfMsg">Si la edición, el precio o la imagen no son los de tu carta, pega el enlace de la impresión correcta y pulsa Cargar datos.</p>
           <div class="inline"><a href="${esc(scgUrl(c.n))}" target="_blank" rel="noopener">Ver en StarCityGames ↗</a></div>
+          ${S.decks.length > 1 ? `<div class="inline moverow"><label for="mvD">Mover a</label><select id="mvD">${[["Mazos de Commander", false], ["Listas de cartas", true]].map(([g, l]) => {
+            const ds = S.decks.filter((x) => x !== d && isList(x) === l).sort((a, b) => a.name.localeCompare(b.name));
+            return ds.length ? `<optgroup label="${g}">${ds.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</optgroup>` : "";
+          }).join("")}</select>
+            ${c.q > 1 ? `<input type="number" id="mvQ" min="1" max="${c.q}" value="${c.q}" aria-label="Copias a mover" title="Copias"> de ${c.q}` : ""}
+            <button class="btn" data-m="move" type="button">Mover</button><button class="btn" data-m="copy" type="button" title="Agregarla también al otro mazo sin quitarla de este">Copiar</button></div>` : ""}
           <div class="row2"><button class="btn danger" data-m="del" type="button">Quitar del mazo</button><button class="btn primary" data-m="ok" type="button" autofocus>Listo</button></div>
         </div>
       </div>`, (el, close) => {
@@ -1120,6 +1134,8 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         if (!su) delete c.su; else if (su !== scryUrl(c.n, c)) c.su = su;
         c.e = el.querySelector("#mE").value.trim();
         c.p = parseFloat(el.querySelector("#mP").value.replace(/[^0-9.]/g, "")) || 0;
+        const cov = el.querySelector("#mCov");
+        if (cov) { if (cov.checked) d.cover = c.n; else if (d.cover === c.n) delete d.cover; }
         const mc = el.querySelector("#mC");
         if (!mc) return;
         const want = mc.checked;
@@ -1149,9 +1165,28 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         if (a === "ok") { apply(); close(); change(); }
         if (a === "img") { apply(); close(); change(); imageModal(d, c); }
         if (a === "del") { close(); d.cards.splice(d.cards.indexOf(c), 1); d.cmd = d.cmd.filter((x) => x !== c.n); previewIdx = null; change(); toast(`${c.n} eliminada`); }
+        if (a === "move" || a === "copy") {
+          const to = deckOf(el.querySelector("#mvD").value), qi = el.querySelector("#mvQ");
+          const q = Math.min(c.q, Math.max(1, qi ? parseInt(qi.value, 10) || 1 : c.q));
+          apply(); close(); moveCard(d, c, to, q, a === "copy");
+        }
       });
       el.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") { apply(); close(); change(); } });
     }, "wide");
+  }
+  // Moves (or copies, with keep) q copies of c to another deck, with its edition, image, link and check mark.
+  // Same card, edition and foil already there: it just gets more copies.
+  function moveCard(from, c, to, q, keep) {
+    if (!to) return;
+    const x = JSON.parse(JSON.stringify(c)); x.q = q;
+    const same = to.cards.find((y) => norm(y.n) === norm(c.n) && norm(y.e) === norm(c.e) && y.f === c.f);
+    if (same) same.q += q; else to.cards.push(x);
+    if (!keep) {
+      c.q -= q;
+      if (c.q <= 0) { from.cards.splice(from.cards.indexOf(c), 1); from.cmd = from.cmd.filter((n) => n !== c.n); previewIdx = null; }
+    }
+    change();
+    toast(`${q} × ${c.n} ${keep ? "copiada" : "movida"}${q > 1 ? "s" : ""} a ${to.name}`);
   }
   function printsUrl(n) { return "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"') + "&unique=prints"; }
   function imageModal(d, c) {
