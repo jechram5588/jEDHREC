@@ -32,6 +32,20 @@ QuantityX	Name	Edition	Foil	Price
 
 Al importar, el nombre del mazo es la parte del nombre de archivo antes del primer `_`. Por ejemplo, `MiMazo_2026_Oct_27_20-47.csv` crea el mazo **MiMazo**. Si ya existe un mazo con ese nombre, se reemplaza su lista de cartas.
 
+Al importar se abre una ventana para confirmar el nombre y elegir el tipo: **Mazo de Commander** o **Lista de cartas** (ver [Tipos de mazo](#tipos-de-mazo)).
+
+**Combinar varios CSV en un mazo:** elige o arrastra varios archivos a la vez. La ventana pregunta además si quieres **combinarlos en un solo mazo** (con el nombre que escribas) o crear **un mazo por archivo**. En los dos casos, los archivos con el mismo nombre de mazo se juntan, y una carta que aparece en varios archivos con la misma edición y foil queda en una sola fila con las copias sumadas.
+
+## Tipos de mazo
+
+| | Mazo de Commander | Lista de cartas |
+|---|---|---|
+| Contador | `N / 100` (verde con 100 exactas) | `N cartas` |
+| Comandante | Se adivina por el nombre del mazo y se puede marcar en la ficha | No tiene |
+| Menú **Mazos ▾** | Agrupado por número de colores | En su propia columna, **Listas de cartas** |
+
+El tipo se elige al importar, al crear un mazo nuevo, o después con el lápiz (**Editar mazo**). Al pasar un mazo a lista se quita su comandante; al volver a Commander se adivina otra vez por el nombre.
+
 ## Uso
 
 ### Página principal
@@ -47,7 +61,7 @@ Al abrir la página se ve **Mis mazos**: los totales de la colección y una tarj
 - Miniatura del comandante; al hacer clic se abre su ficha.
 - Contador **N / 100**: verde si el mazo tiene exactamente 100 cartas.
 - Valor, foils, coste medio (sin tierras), cartas distintas y cuántas hay de cada tipo (criaturas, tierras, instantáneos, conjuros, artefactos…), más la curva de maná (sin contar tierras).
-- Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local), **Exportar** (ver abajo), **Renombrar** (lápiz), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
+- Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local); abajo, **Agregar desde CSV…** suma las cartas de uno o varios CSV al mazo sin borrar las que ya tiene: una carta que ya está con la misma edición y foil solo suma copias. Con la ventana abierta también se pueden arrastrar los CSV, **Exportar** (ver abajo), **Editar mazo** (lápiz: nombre y tipo), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
 - Debajo, la barra con **Vista**, **Agrupar** y **Ordenar** (menús desplegables) y el filtro de cartas del mazo a la derecha.
 
 ### Exportar

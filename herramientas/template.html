@@ -121,6 +121,7 @@ img.pip.sym { width: 19px; height: 19px; }
 .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
 .pill.ok { background: var(--accent-soft); color: var(--ok); }
 .pill.warn { background: var(--danger-soft); color: var(--danger); }
+.pill.info { background: var(--line); color: var(--muted); }
 .deckhead.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 10px 14px; }
 .cmdthumbs { display: flex; gap: 4px; flex: none; }
 .cmdthumb { width: 84px; border: 0; padding: 0; background: transparent; border-radius: 4px; display: block; }
@@ -183,6 +184,7 @@ img.pip.sym { width: 19px; height: 19px; }
 .addform .f-f { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 0.95rem; grid-column: 1 / 4; }
 .addform .f-f input { width: auto; }
 .addform .row2 { grid-column: 1 / 4; }
+.addform .addcsv { display: grid; gap: 4px; justify-items: start; padding-top: 12px; border-top: 1px solid var(--line); }
 
 .board { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 20px; align-items: start; }
 .board.nopreview { grid-template-columns: minmax(0, 1fr); }
@@ -297,6 +299,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .modal textarea { width: 100%; min-height: 220px; font-family: var(--f-mono); font-size: 0.8rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; color: var(--ink); }
 .modal input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .modal .row2 { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.modal .opt { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.modal .opt + input[type="text"] { width: calc(100% - 24px); margin-left: 24px; }
+.modal .kinds { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+.modal input:disabled { opacity: 0.5; }
 .cardmodal { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 18px; }
 .cardmodal .fields { display: grid; gap: 10px; align-content: start; }
 .cardmodal .tl { color: var(--muted); font-size: 0.9rem; }
@@ -393,6 +399,18 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   const value = (d) => d.cards.reduce((a, c) => a + c.q * c.p, 0);
   const meta = (n) => S.meta[n] || null;
   const isCmd = (d, n) => d.cmd.includes(n);
+  // A plain card list (no commander, no 100-card target). Decks without `kind` are Commander.
+  const isList = (d) => d.kind === "list";
+  const KINDS = [["cmd", "Mazo de Commander"], ["list", "Lista de cartas"]];
+  const kindRadios = (cur) => `<div class="kinds" role="radiogroup" aria-label="Tipo">${KINDS.map(([k, label]) =>
+    `<label class="opt"><input type="radio" name="kind" value="${k}"${cur === k ? " checked" : ""}> ${label}</label>`).join("")}</div>`;
+  const kindOf = (m) => m.querySelector('input[name="kind"]:checked').value;
+  // Switching to a list drops the commander; switching back guesses it again from the deck name.
+  function setKind(d, k) {
+    if (k === "list") { d.kind = "list"; d.cmd = []; }
+    else { if (isList(d)) d.cmd = guessCommander(d.name, d.cards); delete d.kind; }
+  }
+  const sizePill = (d, n) => isList(d) ? `<span class="pill info num">${n} cartas</span>` : `<span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span>`;
 
   function change() {
     dirty = true;
@@ -564,30 +582,70 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const hit = cards.find((c) => norm(c.n).startsWith(k));
     return hit ? [hit.n] : [];
   }
+  // Same card, edition and foil from several files becomes one row with the copies added up.
+  function mergeCards(lists) {
+    const out = [], idx = new Map();
+    lists.flat().forEach((c) => {
+      const k = norm(c.n) + "|" + norm(c.e) + "|" + c.f;
+      const hit = idx.get(k);
+      if (hit) hit.q += c.q; else { const x = { ...c }; idx.set(k, x); out.push(x); }
+    });
+    return out;
+  }
   function importFiles(files) {
     const backup = [...files].find((f) => /\.json$/i.test(f.name));
     if (backup) return restoreBackup(backup);
+    Promise.all([...files].map((file) => file.text().then((text) => ({
+      name: file.name.replace(/\.[^.]+$/, "").split("_")[0].trim() || file.name, cards: parseCsv(text) }))))
+      .then((parsed) => {
+        parsed = parsed.filter((p) => p.cards.length);
+        if (!parsed.length) { toast("No se encontraron cartas en ese archivo. Revisa que tenga columnas separadas por tabulador."); return; }
+        const names = [...new Set(parsed.map((p) => p.name))], single = parsed.length === 1;
+        // Suggest a list when every deck being replaced already is one.
+        const olds = names.map((n) => S.decks.find((d) => norm(d.name) === norm(n)));
+        const kind0 = olds.every((d) => d && isList(d)) ? "list" : "cmd";
+        modal(`<h3>${single ? "Importar archivo" : `Importar ${parsed.length} archivos`}</h3>
+          ${single ? "" : `<label class="opt"><input type="radio" name="imode" value="one" checked> Combinar en un solo mazo</label>`}
+          <input type="text" id="nameInput" value="${esc(names[0])}" aria-label="Nombre del mazo">
+          ${single ? "" : `<label class="opt"><input type="radio" name="imode" value="many"> Un mazo por archivo${names.length < parsed.length ? " (los que tienen el mismo nombre se combinan)" : ""}</label>`}
+          ${kindRadios(kind0)}
+          <p class="status">Si ya existe un mazo con ese nombre, se reemplaza su lista de cartas.</p>
+          <div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn primary" data-yes type="button">Importar</button></div>`,
+          (m, close) => {
+            const inp = m.querySelector("#nameInput"), one = () => single || m.querySelector('input[value="one"]').checked;
+            m.querySelectorAll('input[name="imode"]').forEach((r) => r.onchange = () => { inp.disabled = !one(); });
+            inp.onkeydown = (e) => { if (e.key === "Enter") m.querySelector("[data-yes]").click(); };
+            m.querySelector("[data-no]").onclick = close;
+            m.querySelector("[data-yes]").onclick = () => {
+              const v = inp.value.trim();
+              if (one() && !v) { inp.focus(); return; }
+              close(); saveImported(one() ? [{ name: v, cards: mergeCards(parsed.map((p) => p.cards)) }] : parsed, kindOf(m));
+            };
+          });
+      });
+  }
+  // One deck per name: files sharing a name are combined instead of the last one winning.
+  function saveImported(parsed, kind) {
+    const groups = new Map();
+    parsed.forEach((p) => { const k = norm(p.name); if (!groups.has(k)) groups.set(k, { name: p.name, lists: [] }); groups.get(k).lists.push(p.cards); });
     let added = 0, replaced = 0;
-    const jobs = [...files].map((file) => file.text().then((text) => {
-      const cards = parseCsv(text);
-      if (!cards.length) return;
-      const name = file.name.replace(/\.[^.]+$/, "").split("_")[0].trim() || file.name;
+    groups.forEach(({ name, lists }) => {
+      const cards = mergeCards(lists);
       const existing = S.decks.find((d) => norm(d.name) === norm(name));
       if (existing) {
         existing.cards = cards;
         existing.cmd = existing.cmd.filter((n) => cards.some((c) => c.n === n));
-        if (!existing.cmd.length) existing.cmd = guessCommander(name, cards);
+        setKind(existing, kind);
+        if (kind !== "list" && !existing.cmd.length) existing.cmd = guessCommander(name, cards);
         ui.deck = existing.id; replaced++;
       } else {
-        const d = { id: uid(), name, cmd: guessCommander(name, cards), cards };
+        const d = { id: uid(), name, cmd: kind === "list" ? [] : guessCommander(name, cards), cards };
+        if (kind === "list") d.kind = "list";
         S.decks.push(d); ui.deck = d.id; added++;
       }
-    }));
-    Promise.all(jobs).then(() => {
-      if (!added && !replaced) { toast("No se encontraron cartas en ese archivo. Revisa que tenga columnas separadas por tabulador."); return; }
-      change(); lookupMissing();
-      toast([added && `${added} mazo(s) nuevo(s)`, replaced && `${replaced} mazo(s) actualizado(s)`].filter(Boolean).join(", "));
     });
+    change(); lookupMissing();
+    toast([added && `${added} mazo(s) nuevo(s)`, replaced && `${replaced} mazo(s) actualizado(s)`].filter(Boolean).join(", "));
   }
 
   // ---------- Render ----------
@@ -638,11 +696,12 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   let menuOpen = false;
   function renderSide() {
     const cur = !ui.filter.trim() && deckOf(ui.deck);
-    const cols = [["Monocolor", (n) => n <= 1], ["Dos colores", (n) => n === 2], ["Tres colores", (n) => n === 3], ["Cuatro o más", (n) => n >= 4]];
+    const cols = [["Monocolor", (x) => x.ci.length <= 1], ["Dos colores", (x) => x.ci.length === 2], ["Tres colores", (x) => x.ci.length === 3],
+      ["Cuatro o más", (x) => x.ci.length >= 4], ["Listas de cartas", (x) => isList(x.d)]];
     const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
       .sort((a, b) => COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci) || a.d.name.localeCompare(b.d.name));
-    const mega = cols.map(([title, test]) => {
-      const list = items.filter((x) => test(x.ci.length));
+    const mega = cols.map(([title, test], i) => {
+      const list = items.filter((x) => (i === cols.length - 1 || !isList(x.d)) && test(x));
       return list.length ? `<div class="mcol"><h3>${title}</h3>${list.map(({ d, ci }) => `
         <button type="button" class="mitem${cur && cur.id === d.id ? " on" : ""}" data-deck="${d.id}">
           ${pipsHtml(ci)}<span><b>${esc(d.name)}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
@@ -737,10 +796,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         const n = count(d), { foils, typeCounts, avgCmc } = deckStats(d);
         const cmds = d.cmd.map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
         return `<button type="button" class="dcard" data-deck="${d.id}">
-          <div class="thumbs">${cmds.length ? cmds.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">?</span>`}</div>
+          <div class="thumbs">${cmds.length ? cmds.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>
           <div class="info">
-            <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}<span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span></div>
-            <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
+            <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}${sizePill(d, n)}</div>
+            <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : isList(d) ? "Lista de cartas" : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
             <div class="statline"><span><b class="num">${money(value(d))}</b> valor</span><span><b class="num">${foils}</b> foils</span><span><b class="num">${avgCmc}</b> coste medio</span></div>
             <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
             ${curveHtml(d)}
@@ -769,21 +828,21 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     v.innerHTML = `
       <section class="deckhead compact">
         <div class="cmdthumbs">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
-          : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
+          : isList(d) ? `<span class="cmdthumb none" title="Lista de cartas">${icon("list")}</span>` : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
         <div class="dh-main">
           <div class="titlerow">
             <h2 class="deckname">${esc(d.name)}</h2>
             ${pipsHtml(deckColors(d))}
-            <span class="pill ${n === 100 ? "ok" : "warn"} num">${n} / 100</span>
+            ${sizePill(d, n)}
           </div>
-          <div class="cmdr">${d.cmd.length ? d.cmd.map((x) => `<b>${esc(x)}</b>`).join(" + ") : "Sin comandante: abre una carta y márcala como comandante."}</div>
+          <div class="cmdr">${d.cmd.length ? d.cmd.map((x) => `<b>${esc(x)}</b>`).join(" + ") : isList(d) ? "Lista de cartas" : "Sin comandante: abre una carta y márcala como comandante."}</div>
           <div class="statline"><span><b class="num">${money(val)}</b> valor</span><span><b class="num">${foils}</b> foils</span>
             <span><b class="num">${avgCmc}</b> coste medio</span><span><b class="num">${d.cards.length}</b> cartas distintas</span></div>
           <div class="statline types">${typeCounts.map(([label, q]) => `<span><b class="num">${q}</b> ${label}</span>`).join("")}</div>
           <div class="dh-actions">
           <button class="btn ibtn add" id="addCardBtn" type="button" title="Agregar carta" aria-label="Agregar carta">${icon("plus")}</button>
           <button class="btn ibtn" id="exportBtn" type="button" title="Exportar" aria-label="Exportar">${icon("export")}</button>
-          <button class="btn ibtn" type="button" id="renameBtn" title="Renombrar" aria-label="Renombrar">${icon("edit")}</button>
+          <button class="btn ibtn" type="button" id="renameBtn" title="Renombrar o cambiar tipo (Commander / lista de cartas)" aria-label="Renombrar o cambiar tipo">${icon("edit")}</button>
           <button class="btn ibtn" type="button" id="dupBtn" title="Duplicar" aria-label="Duplicar">${icon("copy")}</button>
           <button class="btn ibtn danger" type="button" id="delDeckBtn" title="Eliminar mazo" aria-label="Eliminar mazo">${icon("trash")}</button>
           </div>
@@ -963,9 +1022,15 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         <label class="f-e">Edición<input id="addE" type="text" placeholder="Opcional"></label>
         <label class="f-p">Precio<input id="addP" type="text" inputmode="decimal" placeholder="$0.00"></label>
         <label class="f-f"><input id="addF" type="checkbox"> Foil</label>
+        <div class="f-s addcsv"><button class="btn" data-add="csv" type="button">${icon("import")} Agregar desde CSV…</button>
+          <span class="status">Suma las cartas de uno o varios CSV a este mazo, sin borrar las que ya tiene. También puedes arrastrarlos aquí.</span>
+          <input id="addCsv" type="file" accept=".csv,.tsv,.txt" multiple hidden></div>
         <div class="row2"><button class="btn" data-no type="button">Cerrar</button><button class="btn primary" type="submit">Agregar</button></div>
       </form>`, (m, close) => {
         m.querySelector("[data-no]").onclick = close;
+        const csv = m.querySelector("#addCsv");
+        m.querySelector("[data-add=csv]").onclick = () => csv.click();
+        csv.onchange = () => { appendCsv(csv.files); csv.value = ""; };
         const msg = m.querySelector("#addMsg");
         let sc = null;
         const price = () => { const x = printData(sc, m.querySelector("#addF").checked); if (x.p != null) m.querySelector("#addP").value = x.p.toFixed(2); };
@@ -986,6 +1051,20 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         m.querySelector("#addF").addEventListener("change", () => { if (sc) price(); });
       });
   }
+  // Adds the cards of CSV files to the open deck; a card already there with the same edition and foil just gets more copies.
+  function appendCsv(files) {
+    const d = deckOf(ui.deck); if (!d) return;
+    Promise.all([...files].map((f) => f.text().then(parseCsv))).then((lists) => {
+      const cards = mergeCards(lists);
+      if (!cards.length) { toast("No se encontraron cartas en ese archivo. Revisa que tenga columnas separadas por tabulador."); return; }
+      cards.forEach((card) => {
+        const same = d.cards.find((c) => norm(c.n) === norm(card.n) && norm(c.e) === norm(card.e) && c.f === card.f);
+        if (same) same.q += card.q; else d.cards.push(card);
+      });
+      change(); lookupMissing();
+      toast(`${cards.reduce((a, c) => a + c.q, 0)} carta(s) agregada(s) a ${d.name}`);
+    });
+  }
   function modal(html, wire, cls) {
     const ov = $("overlay");
     ov.innerHTML = `<div class="modal-bg"><div class="modal ${cls || ""}" role="dialog" aria-modal="true">${html}</div></div>`;
@@ -999,11 +1078,13 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     modal(`<h3>${esc(title)}</h3><p>${esc(text)}</p><div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn danger solid" data-yes type="button">${esc(label)}</button></div>`,
       (m, close) => { m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = () => { close(); onYes(); }; });
   }
-  function askName(title, initial, label, onOk) {
+  // With `kind` ("cmd" or "list") it also asks for the deck type and passes it to onOk.
+  function askName(title, initial, label, onOk, kind) {
     modal(`<h3>${esc(title)}</h3><form data-f><input type="text" id="nameInput" value="${esc(initial)}" required aria-label="Nombre del mazo"></form>
+      ${kind ? kindRadios(kind) : ""}
       <div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn primary" data-yes type="button">${esc(label)}</button></div>`,
       (m, close) => {
-        const go = () => { const v = m.querySelector("#nameInput").value.trim(); if (v) { close(); onOk(v); } };
+        const go = () => { const v = m.querySelector("#nameInput").value.trim(); if (v) { close(); onOk(v, kind && kindOf(m)); } };
         m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = go;
         m.querySelector("[data-f]").onsubmit = (e) => { e.preventDefault(); go(); };
       });
@@ -1022,7 +1103,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
             <button type="button" class="foilbtn${c.f ? " on" : ""}" data-m="foil">${c.f ? "Foil" : "No foil"}</button></div>
           <label class="f">Edición<input type="text" id="mE" value="${esc(c.e)}"></label>
           <label class="f">Precio (USD)<input type="text" id="mP" inputmode="decimal" value="${c.p.toFixed(2)}"></label>
-          <label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>
+          ${isList(d) ? "" : `<label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>`}
           ${o ? `<p class="status">También en: ${esc(o.join(", "))}</p>` : ""}
           <label class="f">Enlace de Scryfall<span class="sfrow"><input type="url" id="mS" value="${esc(scryUrl(c.n, c))}" placeholder="https://scryfall.com/card/…" aria-describedby="sfMsg">
             <button class="btn" data-m="sfload" type="button">Cargar datos</button><a class="btn" id="sfOpen" href="${esc(scryUrl(c.n, c))}" target="_blank" rel="noopener" title="Abrir en Scryfall">Abrir ↗</a></span></label>
@@ -1038,7 +1119,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         if (!su) delete c.su; else if (su !== scryUrl(c.n, c)) c.su = su;
         c.e = el.querySelector("#mE").value.trim();
         c.p = parseFloat(el.querySelector("#mP").value.replace(/[^0-9.]/g, "")) || 0;
-        const want = el.querySelector("#mC").checked;
+        const mc = el.querySelector("#mC");
+        if (!mc) return;
+        const want = mc.checked;
         if (want && !isCmd(d, c.n)) d.cmd.push(c.n);
         if (!want) d.cmd = d.cmd.filter((x) => x !== c.n);
       };
@@ -1224,7 +1307,8 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       csv: { label: "CSV (Excel)", text: toCsv(d), file: base + ".csv", type: "text/csv",
         help: "Mismo formato que tus archivos: columnas separadas por tabulador. Se abre en Excel." },
       mox: { label: "Moxfield", text: toMoxfield(d), file: base + " (Moxfield).txt", type: "text/plain",
-        help: `En Moxfield: crea un mazo nuevo (formato Commander), pulsa «Import» y pega esta lista. ${d.cmd.length ? "El comandante va en la primera línea; si Moxfield no lo marca solo, márcalo como comandante en el mazo." : "Este mazo no tiene comandante marcado: elígelo después en Moxfield."}` },
+        help: isList(d) ? "En Moxfield: crea un mazo nuevo (o abre tu colección), pulsa «Import» y pega esta lista."
+          : `En Moxfield: crea un mazo nuevo (formato Commander), pulsa «Import» y pega esta lista. ${d.cmd.length ?"El comandante va en la primera línea; si Moxfield no lo marca solo, márcalo como comandante en el mazo." : "Este mazo no tiene comandante marcado: elígelo después en Moxfield."}` },
     };
     let cur = "csv";
     modal(`<h3>Exportar ${esc(d.name)}</h3>
@@ -1416,12 +1500,12 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     if (t.id === "importBtn") return $("file").click();
     if (t.id === "backupBtn") return backupModal();
     if (t.id === "saveBtn") return save();
-    if (t.id === "newBtn") return askName("Nuevo mazo", "", "Crear", (name) => { const nd = { id: uid(), name, cmd: [], cards: [] }; S.decks.push(nd); ui.deck = nd.id; ui.filter = ""; $("q").value = ""; change(); });
+    if (t.id === "newBtn") return askName("Nuevo mazo", "", "Crear", (name, k) => { const nd = { id: uid(), name, cmd: [], cards: [] }; if (k === "list") nd.kind = "list"; S.decks.push(nd); ui.deck = nd.id; ui.filter = ""; $("q").value = ""; change(); }, "cmd");
     if (!d) return;
     if (t.dataset.card != null) { const c = d.cards[+t.dataset.card]; if (c) cardModal(d, c); return; }
     if (t.id === "exportBtn") return exportDeck(d);
     if (t.id === "addCardBtn") return addCardModal();
-    if (t.id === "renameBtn") return askName("Renombrar mazo", d.name, "Renombrar", (name) => { d.name = name; change(); });
+    if (t.id === "renameBtn") return askName("Editar mazo", d.name, "Guardar", (name, k) => { d.name = name; setKind(d, k); change(); }, isList(d) ? "list" : "cmd");
     if (t.id === "dupBtn") return askName("Duplicar mazo", d.name + " (copia)", "Duplicar", (name) => { const nd = JSON.parse(JSON.stringify(d)); nd.id = uid(); nd.name = name; S.decks.push(nd); ui.deck = nd.id; change(); });
     if (t.id === "delDeckBtn") return confirmBox("Eliminar mazo", `Se eliminará “${d.name}” con sus ${count(d)} cartas.`, "Eliminar", () => { S.decks = S.decks.filter((x) => x !== d); ui.deck = null; change(); });
     const row = t.closest("tr[data-i]");
@@ -1491,10 +1575,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     $("addN").focus();
   });
   let dragDepth = 0;
-  window.addEventListener("dragenter", (e) => { if (![...(e.dataTransfer.types || [])].includes("Files")) return; e.preventDefault(); if (dragDepth++ === 0) { const x = document.createElement("div"); x.className = "drop"; x.id = "dropzone"; x.textContent = "Suelta tus CSV para importarlos"; document.body.appendChild(x); } });
+  window.addEventListener("dragenter", (e) => { if (![...(e.dataTransfer.types || [])].includes("Files")) return; e.preventDefault(); if (dragDepth++ === 0) { const x = document.createElement("div"); x.className = "drop"; x.id = "dropzone"; x.textContent = $("addForm") ? "Suelta tus CSV para agregarlos a este mazo" : "Suelta tus CSV para importarlos"; document.body.appendChild(x); } });
   window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); } });
   window.addEventListener("dragover", (e) => e.preventDefault());
-  window.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); if (e.dataTransfer.files.length && !$("imgModal")) importFiles(e.dataTransfer.files); });
+  window.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; const z = $("dropzone"); if (z) z.remove(); if (e.dataTransfer.files.length && !$("imgModal")) ($("addForm") ? appendCsv : importFiles)(e.dataTransfer.files); });
   document.addEventListener("click", (e) => {
     // The menu re-renders on click, so a click that started inside it may come from a node that is gone now.
     if (menuOpen && e.target.isConnected && !$("decklist").contains(e.target)) { menuOpen = false; renderSide(); }
