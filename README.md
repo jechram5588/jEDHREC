@@ -63,7 +63,8 @@ Al abrir la página se ven dos secciones: **Mis mazos** (los de Commander) y, de
 - Contador **N / 100**: verde si el mazo tiene exactamente 100 cartas.
 - Valor, foils, coste medio (sin tierras), cartas distintas y cuántas hay de cada tipo (criaturas, tierras, instantáneos, conjuros, artefactos…), más la curva de maná (sin contar tierras).
 - Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local); abajo, **Agregar desde CSV…** suma las cartas de uno o varios CSV al mazo sin borrar las que ya tiene: una carta que ya está con la misma edición y foil solo suma copias. Con la ventana abierta también se pueden arrastrar los CSV, **Exportar** (ver abajo), **Editar mazo** (lápiz: nombre y tipo), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
-- Debajo, la barra con **Vista**, **Agrupar** y **Ordenar** (menús desplegables) y el filtro de cartas del mazo a la derecha.
+- Debajo, la barra: a la izquierda el filtro de cartas del mazo, el **filtro de precio**, **Agrupar** y **Ordenar** (menús desplegables); a la derecha **Vista** y **Ocultar verificadas**.
+- **Filtro de precio** ($ mín – máx): muestra solo las cartas cuyo precio por copia está en ese rango, en las tres vistas. Se puede dejar vacío un extremo (solo `5` en mín = $5 o más). La × lo quita. Se aplica a todos los mazos mientras navegas y no se recuerda al recargar la página.
 
 ### Exportar
 | Formato | Resultado |
@@ -77,7 +78,7 @@ Para pasar un mazo a Moxfield: crea un mazo nuevo (formato Commander), pulsa **I
 | Vista | Para qué |
 |---|---|
 | **Lista** | Grupos en columnas, con el coste de maná de cada carta. Al pasar el ratón, la imagen aparece a la izquierda. |
-| **Cuadrícula** | Las imágenes de las cartas, una por una, separadas por grupos. Junto a **Ocultar verificadas** hay un deslizador para cambiar el tamaño de las cartas (se recuerda para la próxima vez). |
+| **Cuadrícula** | Las imágenes de las cartas, una por una, separadas por grupos. Junto a **Ordenar** hay un deslizador para cambiar el tamaño de las cartas (se recuerda para la próxima vez). |
 | **Tabla** | Edición rápida: cantidades, edición, foil, precio y eliminar. Indica si una carta también está en otros mazos. |
 
 En Lista y Cuadrícula se puede **agrupar** por Tipo, Coste, Color o sin grupos, y **ordenar** por Nombre, Coste o Precio. Los grupos se pliegan con ▾.

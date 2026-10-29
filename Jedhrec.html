@@ -147,7 +147,13 @@ img.pip.sym { width: 19px; height: 19px; }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
 .deckhead .toolbar { flex: 1 1 100%; gap: 8px 10px; border-top: 1px solid var(--line); padding-top: 10px; }
-.deckhead .toolbar #deckFilter { flex: 0 1 300px; margin-left: auto; }
+.deckhead .toolbar #deckFilter { flex: 0 1 300px; }
+.pricef { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.deckhead .toolbar .tright { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-left: auto; }
+.tright .dd .menu { left: auto; right: 0; }
+.pricef.on { color: var(--accent); }
+.toolbar .pricef input { flex: 0 0 64px; width: 64px; }
+.pricef .linkbtn { font-size: 1.1rem; line-height: 1; padding: 0 4px; }
 .toolbar input { flex: 1 1 160px; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); }
 .seg button { border: 0; background: transparent; padding: 5px 11px; font-size: 0.9rem; color: var(--muted); }
@@ -389,7 +395,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   const localMode = !(window.claude && window.claude.use);
 
   let stored = null, S = null, dirty = false;
-  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "" };
+  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "", pmin: "", pmax: "" };
   let artifactApi = null, downloadsApi = null, assetsApi = null, canPublish = false, readOnly = false;
   let previewIdx = null;
 
@@ -659,7 +665,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     renderStatus();
     renderSide();
     if (ui.filter.trim().length >= 2) renderSearch(); else renderDeck();
-    const { filter, ...keep } = ui;
+    const { filter, pmin, pmax, ...keep } = ui;
     lsSet(UI_KEY, keep);
   }
   function renderStatus() {
@@ -735,12 +741,16 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     }
     return m;
   }
+  const priceNum = (s) => { const x = parseFloat(String(s || "").replace(",", ".").replace(/[^0-9.]/g, "")); return isNaN(x) ? null : x; };
   function sortedRows(d) {
     const f = norm(d.localFilter || "");
+    // Price range per copy; an empty end is open.
+    const lo = priceNum(ui.pmin), hi = priceNum(ui.pmax);
     const keyFns = { n: (c) => c.n.toLowerCase(), cmc: (c) => cmcOf(c.n) * 1000 + 0, p: (c) => -c.p };
     const key = keyFns[ui.sort] || keyFns.n;
     return d.cards.map((c, i) => ({ c, i }))
       .filter(({ c }) => !(ui.hideOk && c.ok))
+      .filter(({ c }) => (lo == null || c.p >= lo) && (hi == null || c.p <= hi))
       .filter(({ c }) => !f || norm(c.n).includes(f) || norm(c.e).includes(f) || (meta(c.n) && norm(meta(c.n).t).includes(f)))
       .sort((a, b) => { const x = key(a.c), y = key(b.c); return x < y ? -1 : x > y ? 1 : a.c.n.localeCompare(b.c.n); });
   }
@@ -857,12 +867,15 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         </div>
         ${curveHtml(d)}
         <div class="toolbar">
-          ${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
+          <input id="deckFilter" type="search" placeholder="Filtrar por nombre, tipo o edición…" value="${esc(d.localFilter || "")}" aria-label="Filtrar cartas del mazo">
+          <span class="pricef${ui.pmin || ui.pmax ? " on" : ""}" title="Mostrar solo las cartas cuyo precio por copia está en este rango">${icon("dollar")}
+            <input id="pMin" type="text" inputmode="decimal" placeholder="mín" value="${esc(ui.pmin)}" aria-label="Precio mínimo">–<input id="pMax" type="text" inputmode="decimal" placeholder="máx" value="${esc(ui.pmax)}" aria-label="Precio máximo">
+            ${ui.pmin || ui.pmax ? `<button type="button" class="linkbtn" id="pClear" title="Quitar filtro de precio" aria-label="Quitar filtro de precio">×</button>` : ""}</span>
           ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
           ${seg("sort", "Ordenar", [["n", "Nombre", "az"], ["cmc", "Coste", "bolt"], ["p", "Precio", "dollar"]])}` : ""}
-          <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button>
           ${ui.view === "grid" ? `<label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="cardSize" type="range" min="90" max="300" step="10" value="${ui.cardW || 150}" aria-label="Tamaño de las cartas"></label>` : ""}
-          <input id="deckFilter" type="search" placeholder="Filtrar por nombre, tipo o edición…" value="${esc(d.localFilter || "")}" aria-label="Filtrar cartas del mazo">
+          <span class="tright">${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
+            <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button></span>
         </div>
       </section>
       <div class="board${showPreview ? "" : " nopreview"}" style="--cw:${ui.cardW || 150}px">
@@ -1520,6 +1533,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       change(); return;
     }
     if (e.target.closest("#hideOkBtn")) { ui.hideOk = !ui.hideOk; render(); return; }
+    if (e.target.closest("#pClear")) { ui.pmin = ui.pmax = ""; render(); return; }
     const t = e.target.closest("button, th.sort, [data-card]");
     if (!t) return;
     if (t.id === "dmBtn") { menuOpen = !menuOpen; renderSide(); return; }
@@ -1582,11 +1596,16 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const t = e.target;
     if (t.id === "q") { ui.filter = t.value; render(); }
     // Resize in place instead of re-rendering, so dragging stays smooth.
-    if (t.id === "cardSize") { ui.cardW = +t.value; document.querySelector(".board").style.setProperty("--cw", ui.cardW + "px"); const { filter, ...keep } = ui; lsSet(UI_KEY, keep); }
+    if (t.id === "cardSize") { ui.cardW = +t.value; document.querySelector(".board").style.setProperty("--cw", ui.cardW + "px"); const { filter, pmin, pmax, ...keep } = ui; lsSet(UI_KEY, keep); }
     if (t.id === "deckFilter") {
       const d = deckOf(ui.deck); d.localFilter = t.value;
       const pos = t.selectionStart; render();
       const nf = $("deckFilter"); nf.focus(); nf.setSelectionRange(pos, pos);
+    }
+    if (t.id === "pMin" || t.id === "pMax") {
+      ui[t.id === "pMin" ? "pmin" : "pmax"] = t.value;
+      const pos = t.selectionStart; render();
+      const nf = $(t.id); nf.focus(); nf.setSelectionRange(pos, pos);
     }
   });
   app.addEventListener("submit", (e) => {
@@ -1667,7 +1686,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     for (const n in data.meta || {}) if (data.meta[n].b && S.meta[n] && !S.meta[n].b) S.meta[n].b = data.meta[n].b;
     S.decks.forEach((d) => { if (!d.cmd) d.cmd = d.commander ? [d.commander] : []; delete d.commander; });
     const savedUi = lsGet(UI_KEY);
-    if (savedUi) ui = Object.assign(ui, savedUi, { filter: "" });
+    if (savedUi) ui = Object.assign(ui, savedUi, { filter: "", pmin: "", pmax: "" });
     ui.deck = null; // always open on the main page
     render();
     if (localMode) lookupMissing();
