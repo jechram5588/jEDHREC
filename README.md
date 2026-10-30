@@ -70,7 +70,8 @@ Al abrir la página se ven dos secciones: **Mis mazos** (los de Commander) y, de
 ### Cartas compatibles
 En un mazo de Commander, el botón **Cartas compatibles** (destellos) abre la lista de todas las cartas que tienes en tus otros mazos y listas cuya **identidad de color** encaja con la del comandante y que este mazo aún no tiene (sin tierras básicas). Si el mazo no tiene comandante marcado, se usan los colores de todas sus cartas.
 
-- Se agrupan por tipo, o se ordenan por precio o coste. Arriba se filtran por nombre (lupa) y por tipo de carta. Al pasar el ratón se ve la imagen a la izquierda.
+- Arriba, el filtro por nombre (lupa) y, a su lado, **Ocultar las que están en mazos**. Debajo, **Tipo**, **Ordenar** (por tipo, precio o coste) y **Vista**. Al pasar el ratón se ve la imagen a la izquierda.
+- **Vista**, como en el mazo: **Lista** (una tarjeta por carta con todas sus copias), **Cuadrícula** (las imágenes, con Mover y Copiar debajo de cada una; un deslizador junto a **Vista** cambia su tamaño) o **Tabla** (una fila por copia: carta, coste, tipo, dónde está, cantidad, edición y precio). Se recuerda para la próxima vez.
 - **Ocultar las que están en mazos** (ojo) deja solo las copias que tienes en listas de cartas, para no desarmar otro mazo de Commander; se recuerda para la próxima vez.
 - Cada carta muestra dónde está (primero las listas; las que están en otro mazo de Commander llevan la etiqueta **mazo**), con edición, foil y precio.
 - **Mover** quita una copia de ahí y la pone en este mazo; **Copiar** la agrega sin quitarla. La carta desaparece de la lista en cuanto ya está en el mazo.

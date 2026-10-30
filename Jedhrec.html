@@ -336,11 +336,30 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .ifield > .ic { position: absolute; left: 9px; color: var(--muted); pointer-events: none; }
 .ifield input, .ifield select { width: 100%; min-width: 0; padding: 7px 10px 7px 31px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
 #fitHide { display: inline-flex; align-items: center; gap: 6px; }
+.fitbar .sizer { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.fitbar .sizer[hidden] { display: none; }
+#fitCount { margin-left: auto; }
 #fitHide[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .fitwrap { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 14px; min-height: 0; }
 .fitprev { position: sticky; top: 0; align-self: start; }
 .fitlist { display: grid; gap: 6px; max-height: 58vh; overflow-y: auto; padding-right: 4px; }
 .fitlist h4 { margin: 8px 0 0; font-family: var(--f-display); }
+.fitwrap.noprev { grid-template-columns: minmax(0, 1fr); }
+.fitwrap.noprev .fitprev { display: none; }
+.fitlist.grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--fw, 170px)), 1fr)); align-content: start; gap: 12px; }
+.fitlist.grid h4 { grid-column: 1 / -1; }
+.ftile { display: grid; gap: 4px; align-content: start; font-size: 0.8rem; }
+.ftile .fname { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftile .src { display: grid; gap: 3px; border-top: 1px solid var(--line); padding-top: 4px; }
+.ftile .tag { margin-left: 0; margin-right: 4px; }
+.fbtns { display: inline-flex; gap: 4px; white-space: nowrap; }
+.fitlist.table { display: block; }
+.ftable { min-width: 0; font-size: 0.85rem; }
+.ftable th, .ftable td { padding: 4px 6px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
+.ftable th { position: sticky; top: 0; background: var(--panel); z-index: 1; color: var(--muted); font-weight: 600; }
+.ftable tr[data-fn]:hover td { background: var(--hover); }
+.ftable .fgrp td { font-family: var(--f-display); font-weight: 700; padding-top: 10px; }
+.ftable .tag { margin-left: 0; margin-right: 4px; }
 .fit { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: grid; gap: 4px; }
 .fit:hover { border-color: var(--accent); }
 .fitname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -1327,6 +1346,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     return pool;
   }
   const FIT_TYPES = [["", "Todos", "cards"], ...[...TYPE_GROUPS.map((x) => x[1]), "Otros"].map((g) => [g, g])];
+  const FIT_VIEWS = [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]];
   const FIT_SORTS = [["n", "Tipo y nombre", "cards"], ["p", "Precio (mayor primero)", "dollar"], ["cmc", "Coste", "bolt"]];
   // Same look as seg(), but for state that lives in a modal instead of ui.
   function localDd(key, title, opts, cur, iconKey) {
@@ -1342,15 +1362,19 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       <p class="status">Cartas que tienes en otros mazos y listas cuya identidad de color encaja con ${d.cmd.length ? "el comandante" : "este mazo (no tiene comandante marcado, así que se usan los colores de todas sus cartas)"} y que este mazo aún no tiene. Sin tierras básicas.</p>
       <div class="fitbar">
         <label class="ifield grow" title="Filtrar por nombre o tipo">${icon("search")}<input type="search" id="fitQ" placeholder="Filtrar por nombre o tipo…" aria-label="Filtrar cartas compatibles"></label>
-        <span id="fitTypeDd"></span><span id="fitSortDd"></span>
-        <button class="btn" type="button" id="fitHide"></button>
+        <button class="btn" type="button" id="fitHide"></button></div>
+      <div class="fitbar">
+        <span id="fitTypeDd"></span><span id="fitSortDd"></span><span id="fitViewDd"></span>
+        <label class="sizer" id="fitSize" title="Tamaño de las cartas">${icon("grid")}<input id="fitW" type="range" min="110" max="300" step="10" value="${ui.fitW || 170}" aria-label="Tamaño de las cartas"></label>
         <span class="status num" id="fitCount"></span></div>
-      <div class="fitwrap"><div class="fitprev" id="fitPrev"></div><div class="fitlist" id="fitList"></div></div>
+      <div class="fitwrap" id="fitWrap"><div class="fitprev" id="fitPrev"></div><div class="fitlist" id="fitList"></div></div>
       <div class="row2"><button class="btn primary" data-no type="button">Cerrar</button></div>`,
       (m, close) => {
         const draw = () => {
           m.querySelector("#fitTypeDd").innerHTML = localDd("type", "Tipo", FIT_TYPES, type, "cards");
           m.querySelector("#fitSortDd").innerHTML = localDd("sort", "Ordenar", FIT_SORTS, sort, "sort");
+          const view = ui.fitView || "list";
+          m.querySelector("#fitViewDd").innerHTML = localDd("view", "Vista", FIT_VIEWS, view, "list");
           const f = norm(filter);
           const hide = !!ui.fitHide, hb = m.querySelector("#fitHide");
           hb.setAttribute("aria-pressed", hide);
@@ -1364,21 +1388,40 @@ td.type { color: var(--muted); font-size: 0.85rem; }
             : (a, b) => GROUP_ORDER.indexOf(typeGroup(a[0])) - GROUP_ORDER.indexOf(typeGroup(b[0])) || a[0].localeCompare(b[0]));
           m.querySelector("#fitCount").textContent = rows.length + " carta(s)" + (rows.length > 300 ? " · se muestran 300" : "");
           srcs = [];
+          const empty = `<p class="status empty">No hay cartas compatibles${hide ? " en tus listas de cartas" : ""}${f || type ? " con ese filtro" : ""}.</p>`;
+          // Buttons for one copy; srcs holds the copies so clicks can find them by index.
+          const btns = (s) => { srcs.push(s); const i = srcs.length - 1;
+            return `<button class="btn sm" type="button" data-fmove="${i}" title="Quitar una copia de ${esc(s.x.name)} y ponerla en ${esc(d.name)}">Mover</button><button class="btn sm" type="button" data-fcopy="${i}" title="Agregarla a ${esc(d.name)} sin quitarla de ${esc(s.x.name)}">Copiar</button>`; };
+          const where = (s) => `${isList(s.x) ? "" : `<span class="tag" title="Ya se usa en este mazo de Commander">mazo</span>`}${esc(s.x.name)}`;
+          // A heading each time the type changes, only when sorted by type.
           let lastGroup = null;
-          m.querySelector("#fitList").innerHTML = rows.slice(0, 300).map(([n, arr]) => {
-            const g = sort === "n" ? typeGroup(n) : null, head = g && g !== lastGroup ? `<h4>${esc(g)}</h4>` : "";
-            lastGroup = g;
-            return head + `<div class="fit" data-fn="${esc(n)}"><div class="fitname"><b>${esc(n)}</b> ${costHtml(meta(n).m)} <span class="status">${esc(meta(n).t)}</span></div>
-              <div class="fitsrc">${arr.map((s) => { srcs.push(s); const i = srcs.length - 1;
-                return `<span class="src">${isList(s.x) ? "" : `<span class="tag" title="Ya se usa en este mazo de Commander">mazo</span>`}${esc(s.x.name)} · ${s.c.q}x ${esc(s.c.e)}${s.c.f ? " · Foil" : ""} · <span class="num">${money(s.c.p)}</span>
-                  <button class="btn sm" type="button" data-fmove="${i}" title="Quitar una copia de ${esc(s.x.name)} y ponerla en ${esc(d.name)}">Mover</button><button class="btn sm" type="button" data-fcopy="${i}" title="Agregarla a ${esc(d.name)} sin quitarla de ${esc(s.x.name)}">Copiar</button></span>`; }).join("")}</div></div>`;
-          }).join("") || `<p class="status empty">No hay cartas compatibles${hide ? " en tus listas de cartas" : ""}${f || type ? " con ese filtro" : ""}.</p>`;
+          const head = (n, wrap) => { const g = sort === "n" ? typeGroup(n) : null; const h = g && g !== lastGroup ? wrap(esc(g)) : ""; lastGroup = g; return h; };
+          const shown = rows.slice(0, 300), list = m.querySelector("#fitList");
+          list.className = "fitlist " + view;
+          list.style.setProperty("--fw", (ui.fitW || 170) + "px");
+          m.querySelector("#fitSize").hidden = view !== "grid";
+          m.querySelector("#fitWrap").classList.toggle("noprev", view === "grid");
+          if (view === "grid") list.innerHTML = shown.map(([n, arr]) => head(n, (g) => `<h4>${g}</h4>`) + `<div class="ftile" data-fn="${esc(n)}">${artHtml(n, "", arr[0].c)}
+              <b class="fname" title="${esc(n)}">${esc(n)}</b>
+              ${arr.map((s) => `<div class="src"><span>${where(s)} · ${s.c.q}x${s.c.f ? " · Foil" : ""} · <span class="num">${money(s.c.p)}</span></span><span class="fbtns">${btns(s)}</span></div>`).join("")}</div>`).join("") || empty;
+          else if (view === "table") list.innerHTML = shown.length ? `<table class="ftable"><thead><tr><th>Carta</th><th>Coste</th><th>Tipo</th><th>Dónde</th><th>Cant.</th><th>Edición</th><th>Precio</th><th></th></tr></thead><tbody>
+              ${shown.map(([n, arr]) => head(n, (g) => `<tr class="fgrp"><td colspan="8">${g}</td></tr>`) + arr.map((s) => `<tr data-fn="${esc(n)}"><td><b>${esc(n)}</b></td><td>${costHtml(meta(n).m)}</td><td class="status">${esc(meta(n).t)}</td>
+                <td>${where(s)}</td><td class="num">${s.c.q}</td><td>${esc(s.c.e)}${s.c.f ? ` <span class="tag">Foil</span>` : ""}</td><td class="num">${money(s.c.p)}</td><td class="fbtns">${btns(s)}</td></tr>`).join("")).join("")}</tbody></table>` : empty;
+          else list.innerHTML = shown.map(([n, arr]) => head(n, (g) => `<h4>${g}</h4>`) + `<div class="fit" data-fn="${esc(n)}"><div class="fitname"><b>${esc(n)}</b> ${costHtml(meta(n).m)} <span class="status">${esc(meta(n).t)}</span></div>
+              <div class="fitsrc">${arr.map((s) => `<span class="src">${where(s)} · ${s.c.q}x ${esc(s.c.e)}${s.c.f ? " · Foil" : ""} · <span class="num">${money(s.c.p)}</span>
+                  ${btns(s)}</span>`).join("")}</div></div>`).join("") || empty;
         };
         m.querySelector("[data-no]").onclick = close;
         m.querySelector("#fitQ").oninput = (e) => { filter = e.target.value; draw(); };
-        m.querySelector(".fitbar").addEventListener("click", (e) => {
+        // Resize in place instead of redrawing, so dragging stays smooth.
+        m.querySelector("#fitW").oninput = (e) => { ui.fitW = +e.target.value; m.querySelector("#fitList").style.setProperty("--fw", ui.fitW + "px"); };
+        m.querySelector("#fitW").onchange = () => lsSet(UI_KEY, (({ filter, pmin, pmax, scol, ...keep }) => keep)(ui));
+        m.addEventListener("click", (e) => {
           const b = e.target.closest("[data-fv]"); if (!b) return;
-          if (b.closest("[data-fkey]").dataset.fkey === "type") type = b.dataset.fv; else sort = b.dataset.fv;
+          const k = b.closest("[data-fkey]").dataset.fkey;
+          if (k === "type") type = b.dataset.fv;
+          else if (k === "sort") sort = b.dataset.fv;
+          else { ui.fitView = b.dataset.fv; lsSet(UI_KEY, (({ filter, pmin, pmax, scol, ...keep }) => keep)(ui)); }
           draw();
         });
         m.querySelector("#fitHide").onclick = () => { ui.fitHide = !ui.fitHide; lsSet(UI_KEY, (({ filter, pmin, pmax, scol, ...keep }) => keep)(ui)); draw(); };
