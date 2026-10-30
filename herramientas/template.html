@@ -300,6 +300,15 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .results { display: grid; gap: 10px; }
 .result { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: start; }
 .result h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.sbar { margin-top: 10px; }
+.results .rgrp, .sres h4 { margin: 8px 0 0; font-family: var(--f-display); }
+.fitlist.sres { max-height: none; overflow: visible; padding-right: 0; }
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+.ftable.stable { min-width: 720px; }
+/* Search grid: the decks are chips (click opens the deck) and the card gets a single Zoom. */
+.sres .chips { gap: 4px; }
+.sres .chip { font-size: 0.75rem; padding: 1px 8px; }
+.ftile .fbtns.one { grid-template-columns: 1fr; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
@@ -1067,30 +1076,82 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       `<button type="button" class="chip${ui.scol.includes(ch) ? " on" : ""}" data-scol="${ch}" aria-pressed="${ui.scol.includes(ch)}" title="Buscar cartas de color ${colorName(ch)}">${pipsHtml(ch === "C" ? "" : ch)}</button>`).join("")
       + (ui.scol ? `<button type="button" class="linkbtn" data-scol="" title="Quitar filtro de color" aria-label="Quitar filtro de color">×</button>` : "");
   }
+  // "de color negro o rojo" / "con negro y rojo (y quizá otros)" / "exactamente negro y rojo", for the results count.
+  function colorPhrase(mode, scol, picked) {
+    const names = (s, sep) => s.split("").map(colorName).join(sep);
+    if (mode === "any") return ` de color ${names(scol, " o ")}`;
+    if (!picked) return " incoloras";
+    return mode === "all" ? ` con ${names(picked, " y ")}${picked.length < 5 ? " (y quizá otros)" : ""}` : ` exactamente ${names(picked, " y ")}`;
+  }
+  let searchSrcs = []; // copies behind the Zoom buttons of the search results
   function renderSearch() {
     const q = norm(ui.filter.trim());
-    // Color chips (ui.scol): a card matches if it has any chosen color, by its mana cost; "C" is colorless.
-    const okColor = (n) => { if (!ui.scol) return true; const cc = cardColors(n, true); return cc ? [...cc].some((ch) => ui.scol.includes(ch)) : ui.scol.includes("C"); };
+    // Color chips (ui.scol), by the card's mana cost; "C" is colorless. ui.smode says how they combine:
+    // "any" = at least one of them, "all" = has all of them (more allowed), "exact" = exactly those.
+    // In "all" and "exact", Incoloro only counts when no color is picked (a card can't be colorless and red).
+    const smode = ui.smode || "any", picked = ui.scol.replace("C", "");
+    const okColor = (n) => {
+      if (!ui.scol) return true;
+      const cc = cardColors(n, true);
+      if (smode === "any") return cc ? [...cc].some((ch) => ui.scol.includes(ch)) : ui.scol.includes("C");
+      if (!picked) return !cc;
+      if (smode === "all") return [...picked].every((ch) => cc.includes(ch));
+      return cc.length === picked.length && [...picked].every((ch) => cc.includes(ch));
+    };
     const hits = new Map();
     for (const d of S.decks) d.cards.forEach((c, i) => {
       if (!norm(c.n).includes(q) || !okColor(c.n)) return;
       if (!hits.has(c.n)) hits.set(c.n, []);
       hits.get(c.n).push({ d, c, i });
     });
-    const list = [...hits.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-    $("view").innerHTML = `
-      <section class="deckhead"><div class="titlerow"><h2 class="deckname">Resultados</h2>
-      <span class="status">${list.length} carta(s)${q ? ` coinciden con “${esc(ui.filter.trim())}”` : ""}${ui.scol ? ` de color ${ui.scol.split("").map(colorName).join(" o ")}` : ""}${list.length > 120 ? " · se muestran las primeras 120; escribe parte del nombre para acotar" : ""}</span></div></section>
-      <div class="results">${list.slice(0, 120).map(([name, arr]) => `
+    // Same type / sort / view controls as the compatible-cards window, kept in ui so they survive re-renders.
+    const stype = ui.stype || "all", ssort = ui.ssort || "n", sview = ui.sview || "list";
+    const best = (arr) => Math.max(...arr.map((s) => s.c.p));
+    const list = [...hits.entries()].filter(([n]) => stype === "all" || typeGroup(n) === stype)
+      .sort(ssort === "p" ? (a, b) => best(b[1]) - best(a[1]) || a[0].localeCompare(b[0])
+        : ssort === "cmc" ? (a, b) => cmcOf(a[0]) - cmcOf(b[0]) || a[0].localeCompare(b[0])
+        : ssort === "t" ? (a, b) => GROUP_ORDER.indexOf(typeGroup(a[0])) - GROUP_ORDER.indexOf(typeGroup(b[0])) || a[0].localeCompare(b[0])
+        : (a, b) => a[0].localeCompare(b[0]));
+    const shown = list.slice(0, 120);
+    searchSrcs = [];
+    const zoomBtn = (s) => { searchSrcs.push(s); return `<button class="btn sm" type="button" data-szoom="${searchSrcs.length - 1}" title="Ver la carta en grande">Zoom</button>`; };
+    const goBtn = (d) => `<button class="btn sm" type="button" data-goto="${d.id}" title="Abrir ${esc(d.name)}">Ir</button>`;
+    let lastGroup = null;
+    const head = (n, wrap) => { const g = ssort === "t" ? typeGroup(n) : null; const h = g && g !== lastGroup ? wrap(esc(g)) : ""; lastGroup = g; return h; };
+    const byDeck = (arr) => { const g = new Map(); arr.forEach((s) => { if (!g.has(s.d)) g.set(s.d, []); g.get(s.d).push(s); });
+      return [...g.values()].map((x) => x.sort((p, q) => p.c.p - q.c.p)); };
+    const empty = `<div class="deckhead empty">Ninguna carta coincide en tus mazos.</div>`;
+    let body;
+    if (sview === "grid") body = `<div class="fitlist grid sres" style="--fw:${ui.sW || 170}px">${shown.map(([n, arr]) => head(n, (g) => `<h4>${g}</h4>`) + `<div class="ftile">
+        <b class="fname" title="${esc(n)}">${esc(n)}</b>
+        <span class="ftype" title="${meta(n) ? esc(meta(n).t) : ""}">${meta(n) ? esc(meta(n).t) : "Sin datos"}</span>
+        ${artHtml(n, "", arr[0].c)}
+        <div class="src"><div class="chips">${byDeck(arr).map((g) => { const lo = g[0].c.p, hi = g[g.length - 1].c.p, q = g.reduce((a, s) => a + s.c.q, 0);
+          return `<button class="chip" type="button" data-goto="${g[0].d.id}" title="Abrir ${esc(g[0].d.name)}">${esc(g[0].d.name)} · <span class="num">${money(lo)}${hi > lo ? "–" + money(hi) : ""}</span>${q > 1 ? ` · ${q}x` : ""}</button>`; }).join("")}</div>
+          <span class="fbtns one">${zoomBtn(arr[0])}</span></div></div>`).join("")}</div>`;
+    else if (sview === "table") body = `<div class="tablewrap"><table class="ftable stable"><thead><tr><th>Carta</th><th>Coste</th><th>Tipo</th><th>Mazo</th><th>Cant.</th><th>Edición</th><th>Precio</th><th></th></tr></thead><tbody>
+        ${shown.map(([n, arr]) => head(n, (g) => `<tr class="fgrp"><td colspan="8">${g}</td></tr>`) + arr.map((s) => `<tr><td><b>${esc(n)}</b></td><td>${meta(n) ? costHtml(meta(n).m) : ""}</td><td class="status">${meta(n) ? esc(meta(n).t) : ""}</td>
+          <td>${esc(s.d.name)}</td><td class="num">${s.c.q}</td><td>${esc(s.c.e)}${s.c.f ? ` <span class="tag">Foil</span>` : ""}</td><td class="num">${money(s.c.p)}</td><td class="fbtns">${goBtn(s.d)}${zoomBtn(s)}</td></tr>`).join("")).join("")}</tbody></table></div>`;
+    else body = `<div class="results">${shown.map(([name, arr]) => head(name, (g) => `<h4 class="rgrp">${g}</h4>`) + `
         <div class="result">
-          ${artHtml(name)}
+          ${artHtml(name, "", arr[0].c)}
           <div>
             <h3>${esc(name)} ${meta(name) ? costHtml(meta(name).m) : ""}</h3>
             <p class="status">${meta(name) ? esc(meta(name).t) + " · " : ""}en ${new Set(arr.map((x) => x.d.id)).size} mazo(s)</p>
             <div class="chips">${arr.map(({ d, c }) => `<button class="chip" type="button" data-goto="${d.id}">${esc(d.name)} · ${c.q}x ${esc(c.e)}${c.f ? " · Foil" : ""}</button>`).join("")}</div>
           </div>
-        </div>`).join("") || `<div class="deckhead empty">Ninguna carta coincide en tus mazos.</div>`}
-      </div>`;
+        </div>`).join("")}</div>`;
+    $("view").innerHTML = `
+      <section class="deckhead"><div class="titlerow"><h2 class="deckname">Resultados</h2>
+      <span class="status">${list.length} carta(s)${q ? ` coinciden con “${esc(ui.filter.trim())}”` : ""}${ui.scol ? colorPhrase(smode, ui.scol, picked) : ""}${list.length > 120 ? " · se muestran las primeras 120; escribe parte del nombre para acotar" : ""}</span></div>
+      <div class="toolbar sbar">
+        ${seg("stype", "Tipo", [["all", "Todos", "cards"], ...[...TYPE_GROUPS.map((x) => x[1]), "Otros"].map((g) => [g, g, "cards"])], "cards")}
+        ${ui.scol ? seg("smode", "Colores", [["any", "Alguno de esos", "palette"], ["all", "Incluye todos", "circles"], ["exact", "Exactamente esos", "check"]], "palette") : ""}
+        ${seg("ssort", "Ordenar", [["n", "Nombre", "az"], ["t", "Tipo y nombre", "cards"], ["p", "Precio (mayor primero)", "dollar"], ["cmc", "Coste", "bolt"]], "sort")}
+        ${seg("sview", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
+        ${sview === "grid" ? `<label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="sSize" type="range" min="110" max="300" step="10" value="${ui.sW || 170}" aria-label="Tamaño de las cartas"></label>` : ""}
+      </div></section>
+      ${shown.length ? body : empty}`;
   }
 
   // ---------- Overlays ----------
@@ -1809,6 +1870,11 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     if (t.dataset.group) { ui.group = t.dataset.group; render(); return; }
     if (t.dataset.sort) { ui.sort = t.dataset.sort; render(); return; }
     if (t.dataset.hsort) { ui.hsort = t.dataset.hsort; render(); return; }
+    if (t.dataset.stype) { ui.stype = t.dataset.stype; render(); return; }
+    if (t.dataset.ssort) { ui.ssort = t.dataset.ssort; render(); return; }
+    if (t.dataset.smode) { ui.smode = t.dataset.smode; render(); return; }
+    if (t.dataset.sview) { ui.sview = t.dataset.sview; render(); return; }
+    if (t.dataset.szoom) { const s = searchSrcs[+t.dataset.szoom]; return zoomCard(s.c.n, s.c); }
     if (t.dataset.scol != null) { const ch = t.dataset.scol; ui.scol = !ch ? "" : ui.scol.includes(ch) ? ui.scol.replace(ch, "") : ui.scol + ch; render(); return; }
     if (t.dataset.tsort) { ui.dir = ui.tsort === t.dataset.tsort ? -ui.dir : 1; ui.tsort = t.dataset.tsort; render(); return; }
     if (t.dataset.collapse != null) { const k = t.dataset.collapse; if (ui.collapsed[k]) delete ui.collapsed[k]; else ui.collapsed[k] = true; render(); return; }
@@ -1863,6 +1929,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const t = e.target;
     if (t.id === "q") { ui.filter = t.value; render(); }
     // Resize in place instead of re-rendering, so dragging stays smooth.
+    if (t.id === "sSize") { ui.sW = +t.value; document.querySelector(".sres").style.setProperty("--fw", ui.sW + "px"); const { filter, pmin, pmax, scol, ...keep } = ui; lsSet(UI_KEY, keep); }
     if (t.id === "cardSize") { ui.cardW = +t.value; document.querySelector(".board").style.setProperty("--cw", ui.cardW + "px"); const { filter, pmin, pmax, scol, ...keep } = ui; lsSet(UI_KEY, keep); }
     if (t.id === "deckFilter") {
       const d = deckOf(ui.deck); d.localFilter = t.value;
