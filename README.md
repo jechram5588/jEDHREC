@@ -43,7 +43,8 @@ Al importar se abre una ventana para confirmar el nombre y elegir el tipo: **Maz
 | Contador | `N / 100` (verde con 100 exactas) | `N cartas` |
 | Comandante | Se adivina por el nombre del mazo y se puede marcar en la ficha | No tiene |
 | Miniatura | La del comandante | La de la **carta de portada**: en la ficha de cualquier carta, **Usar como portada**. Solo es la imagen; no cambia colores ni la exportación |
-| Menú **Mazos ▾** | Agrupado por número de colores | En su propia columna, **Listas de cartas** |
+| Colores | Los del comandante (sin comandante: los de todas sus cartas) | Se eligen en **Editar mazo**: **Automático** (el color de todas sus cartas juntas, según su coste de maná: a diferencia de la identidad de Commander, una carta negra con flashback blanco cuenta solo como negra; debajo se ve qué cartas aportan cada color), **los de la carta de portada**, o **elegidos a mano** (ninguno = incoloro). Automático y portada se recalculan solos al cambiar las cartas |
+| Menú **Mazos ▾** | Agrupado por número de colores | A lo ancho del menú, en su sección, **Listas de cartas** |
 
 El tipo se elige al importar, al crear un mazo nuevo, o después con el lápiz (**Editar mazo**). Al pasar un mazo a lista se quita su comandante y pasa a ser la portada; al volver a Commander se adivina otra vez por el nombre.
 
@@ -55,11 +56,11 @@ Al abrir la página se ven dos secciones: **Mis mazos** (los de Commander) y, de
 ### Barra superior
 - **Mazos ▾**: muestra el nombre completo del comandante del mazo abierto (o el nombre del mazo si no tiene comandante). Al abrirlo, un menú con los mazos agrupados por identidad de color: Monocolor, Dos colores, Tres colores, Cuatro o más. Cada mazo muestra sus símbolos de color y el nombre de la combinación (Izzet, Jund, Temur…). Al pie aparecen los totales de la colección.
 - Junto al menú, dos botones con icono (el nombre aparece al pasar el ratón): **Importar CSV** (también se pueden arrastrar los archivos a la página) y **Nuevo mazo**.
-- **Búsqueda**: busca una carta en todos los mazos y muestra en cuáles está, con qué edición y cuántas copias.
+- **Búsqueda**: busca una carta en todos los mazos y muestra en cuáles está, con qué edición y cuántas copias. Junto a la caja están los botones de color (blanco, azul, negro, rojo, verde e incoloro): filtran por el color de la carta, según su coste de maná, y funcionan también sin escribir nada (por ejemplo, solo negro = todas tus cartas negras). Con varios marcados se muestran las cartas que tienen cualquiera de esos colores; la × los quita. Se muestran hasta 120 cartas; si hay más, escribe parte del nombre para acotar.
 - **Guardar** (ver [Dónde se guardan los cambios](#dónde-se-guardan-los-cambios)), **Respaldo** y **Tema** (claro u oscuro).
 
 ### Cabecera del mazo
-- Miniatura del comandante; al hacer clic se abre su ficha.
+- Miniatura del comandante; al hacer clic se abre su ficha. Si el mazo tiene dos (partners), las miniaturas se ven una detrás de otra, aquí y en la página principal; al pasar el ratón, la de atrás pasa al frente.
 - Contador **N / 100**: verde si el mazo tiene exactamente 100 cartas.
 - Valor, foils, coste medio (sin tierras), cartas distintas y cuántas hay de cada tipo (criaturas, tierras, instantáneos, conjuros, artefactos…), más la curva de maná (sin contar tierras).
 - Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local); abajo, **Agregar desde CSV…** suma las cartas de uno o varios CSV al mazo sin borrar las que ya tiene: una carta que ya está con la misma edición y foil solo suma copias. Con la ventana abierta también se pueden arrastrar los CSV, **Exportar** (ver abajo), **Editar mazo** (lápiz: nombre y tipo), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).

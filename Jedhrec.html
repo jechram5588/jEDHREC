@@ -51,8 +51,8 @@ button { cursor: pointer; }
 .dcard h3 { margin: 0; font-family: var(--f-display); font-size: 1.25rem; line-height: 1.15; }
 .dcard .cmdr { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dcard .cmdr small { color: var(--muted); font-size: 0.85rem; }
-.search { flex: 1 1 220px; min-width: 0; max-width: 340px; }
-.search input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.search { flex: 1 1 220px; min-width: 0; max-width: 520px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.search input { flex: 1 1 180px; min-width: 0; width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
 .btn { border: 1px solid var(--line); background: var(--panel); padding: 6px 12px; border-radius: 6px; white-space: nowrap; }
 .btn:hover { border-color: var(--accent); }
@@ -82,11 +82,16 @@ button { cursor: pointer; }
   padding: 16px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px 28px; }
 .mega h3 { font-family: var(--f-display); font-size: 1.1rem; margin: 0 0 6px; }
 .mcol { display: grid; gap: 2px; align-content: start; }
+/* Card lists span the whole menu, with their items flowing across in columns. */
+.mcol.wide { grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); column-gap: 28px; }
+.mcol.wide h3 { grid-column: 1 / -1; }
+
 .mitem { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: transparent; padding: 5px 6px; border-radius: 6px; text-align: left; }
 .mitem:hover { background: var(--hover); }
 .mitem.on { background: var(--accent-soft); }
 .mitem.on b { color: var(--accent); }
 .mitem span { display: grid; min-width: 0; line-height: 1.25; }
+.mitem .pips { display: inline-flex; }
 .mitem b { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mitem small { color: var(--muted); font-size: 0.76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mega .empty { grid-column: 1 / -1; padding: 8px; }
@@ -126,6 +131,13 @@ img.pip.sym { width: 19px; height: 19px; }
 .cmdthumb { width: 84px; border: 0; padding: 0; background: transparent; border-radius: 4px; display: block; }
 .cmdthumb .art { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); }
 .cmdthumb.none { aspect-ratio: 488 / 680; display: grid; place-items: center; border: 1px dashed var(--line); color: var(--muted); font-size: 1.4rem; }
+/* Two commanders (partners): the second sits behind the first, peeking out top right; hovering brings it to the front. */
+.stack { position: relative; display: block; padding-top: 12px; }
+.cmdthumbs.stack { width: 96px; }
+.stack > * { position: relative; z-index: 2; width: calc(100% - 12px); transition: transform .2s ease, filter .2s ease; }
+.stack > :last-child { position: absolute; top: 0; left: 12px; z-index: 1; filter: brightness(0.8); }
+.stack:hover > :first-child { z-index: 1; transform: translate(12px, -12px); filter: brightness(0.8); }
+.stack:hover > :last-child { z-index: 3; transform: translate(-12px, 12px); filter: none; }
 .dh-main { flex: 1 1 260px; min-width: 0; display: grid; gap: 2px; }
 .compact .titlerow { gap: 4px 10px; align-items: center; }
 .compact .deckname { font-size: 1.45rem; line-height: 1.15; }
@@ -292,6 +304,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
+.scol { align-items: center; gap: 3px; flex: none; }
+.scol .chip { padding: 2px 4px; line-height: 0; opacity: 0.45; }
+.scol .chip.on { opacity: 1; border-color: var(--accent); background: var(--accent-soft); }
+.scol .linkbtn { color: var(--accent); font-size: 1.1rem; line-height: 1; padding: 0 4px; }
 
 .drop { border: 2px dashed var(--accent); background: var(--accent-soft); color: var(--accent); position: fixed; inset: 12px; z-index: 30;
   border-radius: 12px; display: grid; place-items: center; font-family: var(--f-display); font-size: 1.6rem; pointer-events: none; }
@@ -307,6 +323,11 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .modal .opt { display: flex; gap: 8px; align-items: center; cursor: pointer; }
 .modal .opt + input[type="text"] { width: calc(100% - 24px); margin-left: 24px; }
 .modal .kinds { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 10px; border-top: 1px solid var(--line); }
+.modal .colorsel { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.modal .colorsel[hidden] { display: none; }
+.modal .colorsel .csrc { display: grid; gap: 4px; margin-left: 24px; font-size: 0.85rem; color: var(--muted); }
+.modal .colorsel .csrc div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.modal .colorsel .picks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-left: 24px; }
 .modal input:disabled { opacity: 0.5; }
 .cardmodal { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 18px; }
 .cardmodal .fields { display: grid; gap: 10px; align-content: start; }
@@ -350,7 +371,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   .cardmodal { grid-template-columns: minmax(0, 1fr); }
   .cardmodal .art { max-width: 240px; margin: 0 auto; }
 }
-@media (prefers-reduced-motion: reduce) { .gcard .art, .flip .faces { transition: none; } .gcard:hover .art { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gcard .art, .flip .faces, .stack > * { transition: none; } .gcard:hover .art { transform: none; } }
 @media (prefers-reduced-motion: no-preference) { .deckbtn, .btn, .chip { transition: border-color .15s, background .15s; } }
 </style>
 <div id="app">
@@ -362,7 +383,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       <button class="btn ibtn" id="importBtn" type="button" title="Importar CSV" aria-label="Importar CSV"></button>
       <button class="btn ibtn add" id="newBtn" type="button" title="Nuevo mazo" aria-label="Nuevo mazo"></button>
     </div>
-    <div class="search"><input id="q" type="search" placeholder="Buscar una carta en todos los mazos…" aria-label="Buscar carta en todos los mazos"></div>
+    <div class="search"><input id="q" type="search" placeholder="Buscar una carta en todos los mazos…" aria-label="Buscar carta en todos los mazos"><span class="chips scol" id="scolBox" role="group" aria-label="Buscar por color"></span></div>
     <div class="actions">
       <span class="status" id="status"></span>
       <button class="btn primary" id="saveBtn" type="button" hidden>Guardar</button>
@@ -395,7 +416,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   const localMode = !(window.claude && window.claude.use);
 
   let stored = null, S = null, dirty = false;
-  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "", pmin: "", pmax: "" };
+  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "", pmin: "", pmax: "", scol: "" };
   let artifactApi = null, downloadsApi = null, assetsApi = null, canPublish = false, readOnly = false;
   let previewIdx = null;
 
@@ -418,7 +439,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   // The commander becomes the list's cover card.
   function setKind(d, k) {
     if (k === "list") { if (!isList(d) && d.cmd.length) d.cover = d.cmd[0]; d.kind = "list"; d.cmd = []; }
-    else { if (isList(d)) d.cmd = guessCommander(d.name, d.cards); delete d.kind; delete d.cover; }
+    else { if (isList(d)) d.cmd = guessCommander(d.name, d.cards); delete d.kind; delete d.cover; delete d.colors; }
   }
   // Cards shown as the deck's thumbnail: its commander(s), or a list's cover card.
   const thumbNames = (d) => isList(d) ? (d.cover ? [d.cover] : []) : d.cmd;
@@ -664,8 +685,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   function render() {
     renderStatus();
     renderSide();
-    if (ui.filter.trim().length >= 2) renderSearch(); else renderDeck();
-    const { filter, pmin, pmax, ...keep } = ui;
+    renderScol();
+    if (ui.filter.trim().length >= 2 || ui.scol) renderSearch(); else renderDeck();
+    const { filter, pmin, pmax, scol, ...keep } = ui;
     lsSet(UI_KEY, keep);
   }
   function renderStatus() {
@@ -696,10 +718,28 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     WUBR: "Yore-Tiller", UBRG: "Glint-Eye", WBRG: "Dune-Brood", WURG: "Ink-Treader", WUBG: "Witch-Maw", WUBRG: "Cinco colores",
   };
   const COMBO_ORDER = Object.keys(COMBOS);
-  function deckColors(d) {
+  // A card's color identity (Commander rules: cost and rules text), or with byCost just the color of its mana cost.
+  function cardColors(n, byCost) {
+    const m = meta(n); if (!m) return "";
+    return byCost ? "WUBRG".split("").filter((ch) => (m.m || "").includes(ch)).join("") : m.ci || "";
+  }
+  function colorsOf(names, byCost) {
     const set = new Set();
-    (d.cmd.length ? d.cmd : d.cards.map((c) => c.n)).forEach((n) => { const m = meta(n); if (m) for (const ch of m.ci || "") set.add(ch); });
+    names.forEach((n) => { for (const ch of cardColors(n, byCost)) set.add(ch); });
     return "WUBRG".split("").filter((c) => set.has(c)).join("");
+  }
+  const ciOf = (names) => colorsOf(names, false);
+  // Commander decks use color identity; lists use the cards' own colors, so a black card with a white flashback stays black.
+  const autoColors = (d) => d.cmd.length ? ciOf(d.cmd) : colorsOf(d.cards.map((c) => c.n), isList(d));
+  // Which cards bring each color into autoColors, fewest first so the odd ones out are easy to spot.
+  function colorSources(d) {
+    const byCost = isList(d) && !d.cmd.length;
+    return autoColors(d).split("").map((ch) => [ch, d.cards.filter((c) => cardColors(c.n, byCost).includes(ch))]).sort((a, b) => a[1].length - b[1].length);
+  }
+  // A list can override its colors (d.colors): "cover" follows the cover card, any other string is a hand-picked identity.
+  function deckColors(d) {
+    if (isList(d) && d.colors != null) return d.colors === "cover" && d.cover ? colorsOf([d.cover], true) : d.colors === "cover" ? autoColors(d) : d.colors;
+    return autoColors(d);
   }
   function pipsHtml(ci) {
     return `<span class="pips" aria-label="${esc(COMBOS[ci] || ci)}" title="${esc(COMBOS[ci] || ci)}">${(ci || "C").split("").map((c) =>
@@ -707,14 +747,14 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   }
   let menuOpen = false;
   function renderSide() {
-    const cur = !ui.filter.trim() && deckOf(ui.deck);
+    const cur = !ui.filter.trim() && !ui.scol && deckOf(ui.deck);
     const cols = [["Monocolor", (x) => x.ci.length <= 1], ["Dos colores", (x) => x.ci.length === 2], ["Tres colores", (x) => x.ci.length === 3],
       ["Cuatro o más", (x) => x.ci.length >= 4], ["Listas de cartas", (x) => isList(x.d)]];
     const items = S.decks.map((d) => ({ d, ci: deckColors(d) }))
       .sort((a, b) => COMBO_ORDER.indexOf(a.ci) - COMBO_ORDER.indexOf(b.ci) || a.d.name.localeCompare(b.d.name));
     const mega = cols.map(([title, test], i) => {
       const list = items.filter((x) => (i === cols.length - 1 || !isList(x.d)) && test(x));
-      return list.length ? `<div class="mcol"><h3>${title}</h3>${list.map(({ d, ci }) => `
+      return list.length ? `<div class="mcol${i === cols.length - 1 ? " wide" : ""}"><h3>${title}</h3>${list.map(({ d, ci }) => `
         <button type="button" class="mitem${cur && cur.id === d.id ? " on" : ""}" data-deck="${d.id}">
           ${pipsHtml(ci)}<span><b>${esc(d.name)}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
         </button>`).join("")}</div>` : "";
@@ -815,7 +855,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         const cmds = d.cmd.map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
         const thumbs = thumbNames(d).map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
         return `<button type="button" class="dcard" data-deck="${d.id}">
-          <div class="thumbs">${thumbs.length ? thumbs.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>
+          <div class="thumbs${thumbs.length === 2 ? " stack" : ""}">${thumbs.length ? thumbs.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>
           <div class="info">
             <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}${sizePill(d, n)}</div>
             <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : isList(d) ? "Lista de cartas" : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
@@ -845,7 +885,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     }
     v.innerHTML = `
       <section class="deckhead compact">
-        <div class="cmdthumbs">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
+        <div class="cmdthumbs${cmdIdx.length === 2 ? " stack" : ""}">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
           : isList(d) ? `<span class="cmdthumb none" title="Sin portada: abre una carta y márcala como portada">${icon("list")}</span>` : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
         <div class="dh-main">
           <div class="titlerow">
@@ -969,18 +1009,27 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   function emptyHtml(d) {
     return `<div class="deckhead empty">${d.cards.length ? "Ninguna carta coincide con el filtro." : "Este mazo está vacío. Agrega cartas con el formulario de arriba."}</div>`;
   }
+  const colorName = (ch) => ch === "C" ? "incoloro" : COMBOS[ch].toLowerCase();
+  // Color chips next to the search box; they search on their own, even with the box empty.
+  function renderScol() {
+    $("scolBox").innerHTML = "WUBRGC".split("").map((ch) =>
+      `<button type="button" class="chip${ui.scol.includes(ch) ? " on" : ""}" data-scol="${ch}" aria-pressed="${ui.scol.includes(ch)}" title="Buscar cartas de color ${colorName(ch)}">${pipsHtml(ch === "C" ? "" : ch)}</button>`).join("")
+      + (ui.scol ? `<button type="button" class="linkbtn" data-scol="" title="Quitar filtro de color" aria-label="Quitar filtro de color">×</button>` : "");
+  }
   function renderSearch() {
     const q = norm(ui.filter.trim());
+    // Color chips (ui.scol): a card matches if it has any chosen color, by its mana cost; "C" is colorless.
+    const okColor = (n) => { if (!ui.scol) return true; const cc = cardColors(n, true); return cc ? [...cc].some((ch) => ui.scol.includes(ch)) : ui.scol.includes("C"); };
     const hits = new Map();
     for (const d of S.decks) d.cards.forEach((c, i) => {
-      if (!norm(c.n).includes(q)) return;
+      if (!norm(c.n).includes(q) || !okColor(c.n)) return;
       if (!hits.has(c.n)) hits.set(c.n, []);
       hits.get(c.n).push({ d, c, i });
     });
     const list = [...hits.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     $("view").innerHTML = `
       <section class="deckhead"><div class="titlerow"><h2 class="deckname">Resultados</h2>
-      <span class="status">${list.length} carta(s) coinciden con “${esc(ui.filter.trim())}”</span></div></section>
+      <span class="status">${list.length} carta(s)${q ? ` coinciden con “${esc(ui.filter.trim())}”` : ""}${ui.scol ? ` de color ${ui.scol.split("").map(colorName).join(" o ")}` : ""}${list.length > 120 ? " · se muestran las primeras 120; escribe parte del nombre para acotar" : ""}</span></div></section>
       <div class="results">${list.slice(0, 120).map(([name, arr]) => `
         <div class="result">
           ${artHtml(name)}
@@ -1108,6 +1157,41 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         const go = () => { const v = m.querySelector("#nameInput").value.trim(); if (v) { close(); onOk(v, kind && kindOf(m)); } };
         m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = go;
         m.querySelector("[data-f]").onsubmit = (e) => { e.preventDefault(); go(); };
+      });
+  }
+  // Name and type; for a list, also where its colors come from.
+  function editDeckModal(d) {
+    const mode = d.colors == null ? "auto" : d.colors === "cover" ? "cover" : "pick";
+    const picked = mode === "pick" ? d.colors : autoColors(d);
+    modal(`<h3>Editar mazo</h3>
+      <input type="text" id="nameInput" value="${esc(d.name)}" required aria-label="Nombre del mazo">
+      ${kindRadios(isList(d) ? "list" : "cmd")}
+      <div class="colorsel" id="colorSel"${isList(d) ? "" : " hidden"}>
+        <b>Colores de la lista</b>
+        <label class="opt"><input type="radio" name="cmode" value="auto"${mode === "auto" ? " checked" : ""}> Automático: el color de todas sus cartas ${pipsHtml(autoColors(d))}</label>
+        <div class="csrc">${colorSources(d).map(([ch, cs]) => `<div>${pipsHtml(ch)} <b class="num">${cs.reduce((a, c) => a + c.q, 0)}</b>${cs.length <= 6 ? ": " + cs.map((c) => esc(c.n)).join(", ") : " cartas"}</div>`).join("")}</div>
+        <label class="opt"><input type="radio" name="cmode" value="cover"${mode === "cover" ? " checked" : ""}${d.cover ? "" : " disabled"}> Los de la carta de portada ${d.cover ? pipsHtml(colorsOf([d.cover], true)) : "(no tiene portada)"}</label>
+        <label class="opt"><input type="radio" name="cmode" value="pick"${mode === "pick" ? " checked" : ""}> Elegir:</label>
+        <div class="picks">${"WUBRG".split("").map((ch) => `<label class="opt" title="${esc(COMBOS[ch])}"><input type="checkbox" value="${ch}"${picked.includes(ch) ? " checked" : ""}> ${pipsHtml(ch)}</label>`).join("")}
+          <span class="status">Ninguno = incoloro</span></div>
+      </div>
+      <div class="row2"><button class="btn" data-no type="button">Cancelar</button><button class="btn primary" data-yes type="button">Guardar</button></div>`,
+      (m, close) => {
+        const pickRadio = m.querySelector('input[name="cmode"][value="pick"]');
+        m.querySelectorAll('input[name="kind"]').forEach((r) => r.onchange = () => { m.querySelector("#colorSel").hidden = kindOf(m) !== "list"; });
+        m.querySelectorAll(".picks input").forEach((x) => x.onchange = () => { pickRadio.checked = true; });
+        const go = () => {
+          const name = m.querySelector("#nameInput").value.trim(); if (!name) return;
+          d.name = name; setKind(d, kindOf(m));
+          if (isList(d)) {
+            const cm = m.querySelector('input[name="cmode"]:checked').value;
+            if (cm === "auto") delete d.colors;
+            else d.colors = cm === "cover" ? "cover" : [...m.querySelectorAll(".picks input:checked")].map((x) => x.value).join("");
+          }
+          close(); change();
+        };
+        m.querySelector("#nameInput").onkeydown = (e) => { if (e.key === "Enter") go(); };
+        m.querySelector("[data-no]").onclick = close; m.querySelector("[data-yes]").onclick = go;
       });
   }
   function cardModal(d, c) {
@@ -1537,25 +1621,26 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const t = e.target.closest("button, th.sort, [data-card]");
     if (!t) return;
     if (t.id === "dmBtn") { menuOpen = !menuOpen; renderSide(); return; }
-    if (t.dataset.deck) { menuOpen = false; ui.deck = t.dataset.deck; ui.filter = ""; $("q").value = ""; previewIdx = null; render(); return; }
-    if (t.id === "homeBtn") { menuOpen = false; ui.deck = null; ui.filter = ""; $("q").value = ""; render(); return; }
-    if (t.dataset.goto) { ui.deck = t.dataset.goto; ui.filter = ""; $("q").value = ""; previewIdx = null; render(); return; }
+    if (t.dataset.deck) { menuOpen = false; ui.deck = t.dataset.deck; ui.filter = ""; ui.scol = ""; $("q").value = ""; previewIdx = null; render(); return; }
+    if (t.id === "homeBtn") { menuOpen = false; ui.deck = null; ui.filter = ""; ui.scol = ""; $("q").value = ""; render(); return; }
+    if (t.dataset.goto) { ui.deck = t.dataset.goto; ui.filter = ""; ui.scol = ""; $("q").value = ""; previewIdx = null; render(); return; }
     if (t.dataset.view) { ui.view = t.dataset.view; render(); return; }
     if (t.dataset.group) { ui.group = t.dataset.group; render(); return; }
     if (t.dataset.sort) { ui.sort = t.dataset.sort; render(); return; }
     if (t.dataset.hsort) { ui.hsort = t.dataset.hsort; render(); return; }
+    if (t.dataset.scol != null) { const ch = t.dataset.scol; ui.scol = !ch ? "" : ui.scol.includes(ch) ? ui.scol.replace(ch, "") : ui.scol + ch; render(); return; }
     if (t.dataset.tsort) { ui.dir = ui.tsort === t.dataset.tsort ? -ui.dir : 1; ui.tsort = t.dataset.tsort; render(); return; }
     if (t.dataset.collapse != null) { const k = t.dataset.collapse; if (ui.collapsed[k]) delete ui.collapsed[k]; else ui.collapsed[k] = true; render(); return; }
     const d = deckOf(ui.deck);
     if (t.id === "importBtn") return $("file").click();
     if (t.id === "backupBtn") return backupModal();
     if (t.id === "saveBtn") return save();
-    if (t.id === "newBtn") return askName("Nuevo mazo", "", "Crear", (name, k) => { const nd = { id: uid(), name, cmd: [], cards: [] }; if (k === "list") nd.kind = "list"; S.decks.push(nd); ui.deck = nd.id; ui.filter = ""; $("q").value = ""; change(); }, "cmd");
+    if (t.id === "newBtn") return askName("Nuevo mazo", "", "Crear", (name, k) => { const nd = { id: uid(), name, cmd: [], cards: [] }; if (k === "list") nd.kind = "list"; S.decks.push(nd); ui.deck = nd.id; ui.filter = ""; ui.scol = ""; $("q").value = ""; change(); }, "cmd");
     if (!d) return;
     if (t.dataset.card != null) { const c = d.cards[+t.dataset.card]; if (c) cardModal(d, c); return; }
     if (t.id === "exportBtn") return exportDeck(d);
     if (t.id === "addCardBtn") return addCardModal();
-    if (t.id === "renameBtn") return askName("Editar mazo", d.name, "Guardar", (name, k) => { d.name = name; setKind(d, k); change(); }, isList(d) ? "list" : "cmd");
+    if (t.id === "renameBtn") return editDeckModal(d);
     if (t.id === "dupBtn") return askName("Duplicar mazo", d.name + " (copia)", "Duplicar", (name) => { const nd = JSON.parse(JSON.stringify(d)); nd.id = uid(); nd.name = name; S.decks.push(nd); ui.deck = nd.id; change(); });
     if (t.id === "delDeckBtn") return confirmBox("Eliminar mazo", `Se eliminará “${d.name}” con sus ${count(d)} cartas.`, "Eliminar", () => { S.decks = S.decks.filter((x) => x !== d); ui.deck = null; change(); });
     const row = t.closest("tr[data-i]");
@@ -1596,7 +1681,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const t = e.target;
     if (t.id === "q") { ui.filter = t.value; render(); }
     // Resize in place instead of re-rendering, so dragging stays smooth.
-    if (t.id === "cardSize") { ui.cardW = +t.value; document.querySelector(".board").style.setProperty("--cw", ui.cardW + "px"); const { filter, pmin, pmax, ...keep } = ui; lsSet(UI_KEY, keep); }
+    if (t.id === "cardSize") { ui.cardW = +t.value; document.querySelector(".board").style.setProperty("--cw", ui.cardW + "px"); const { filter, pmin, pmax, scol, ...keep } = ui; lsSet(UI_KEY, keep); }
     if (t.id === "deckFilter") {
       const d = deckOf(ui.deck); d.localFilter = t.value;
       const pos = t.selectionStart; render();
@@ -1686,7 +1771,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     for (const n in data.meta || {}) if (data.meta[n].b && S.meta[n] && !S.meta[n].b) S.meta[n].b = data.meta[n].b;
     S.decks.forEach((d) => { if (!d.cmd) d.cmd = d.commander ? [d.commander] : []; delete d.commander; });
     const savedUi = lsGet(UI_KEY);
-    if (savedUi) ui = Object.assign(ui, savedUi, { filter: "", pmin: "", pmax: "" });
+    if (savedUi) ui = Object.assign(ui, savedUi, { filter: "", pmin: "", pmax: "", scol: "" });
     ui.deck = null; // always open on the main page
     render();
     if (localMode) lookupMissing();
