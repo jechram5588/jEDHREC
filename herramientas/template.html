@@ -304,7 +304,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 .scol { align-items: center; gap: 3px; flex: none; }
-.scol .chip { padding: 2px 4px; line-height: 0; opacity: 0.45; }
+.scol .chip { padding: 2px 4px; line-height: 0; }
+/* Once a color is picked, the rest go gray rather than transparent, so they stay visible on the dark theme. */
+.scol.any .chip:not(.on) { filter: grayscale(1); opacity: 0.75; }
+.scol .chip:hover { filter: none; opacity: 1; }
 .scol .chip.on { opacity: 1; border-color: var(--accent); background: var(--accent-soft); }
 .scol .linkbtn { color: var(--accent); font-size: 1.1rem; line-height: 1; padding: 0 4px; }
 
@@ -324,6 +327,26 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .modal .kinds { display: flex; flex-wrap: wrap; gap: 6px 18px; padding-top: 10px; border-top: 1px solid var(--line); }
 .modal .colorsel { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
 .modal .colorsel[hidden] { display: none; }
+.fitbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.modal.fitsm { width: min(980px, 100%); }
+/* Inputs and selects with the icon drawn inside, on the left. */
+.ifield { position: relative; display: inline-flex; align-items: center; min-width: 0; }
+.ifield.grow { flex: 1 1 200px; }
+.ifield > .ic { position: absolute; left: 9px; color: var(--muted); pointer-events: none; }
+.ifield input, .ifield select { width: 100%; min-width: 0; padding: 7px 10px 7px 31px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+#fitHide { display: inline-flex; align-items: center; gap: 6px; }
+#fitHide[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.fitwrap { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 14px; min-height: 0; }
+.fitprev { position: sticky; top: 0; align-self: start; }
+.fitlist { display: grid; gap: 6px; max-height: 58vh; overflow-y: auto; padding-right: 4px; }
+.fitlist h4 { margin: 8px 0 0; font-family: var(--f-display); }
+.fit { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: grid; gap: 4px; }
+.fit:hover { border-color: var(--accent); }
+.fitname { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.fitsrc { display: grid; gap: 4px; font-size: 0.85rem; }
+.fitsrc .src { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.btn.sm { padding: 2px 8px; font-size: 0.8rem; }
+@media (max-width: 760px) { .fitwrap { grid-template-columns: minmax(0, 1fr); } .fitprev { display: none; } }
 .modal .colorsel .csrc { display: grid; gap: 4px; margin-left: 24px; font-size: 0.85rem; color: var(--muted); }
 .modal .colorsel .csrc div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .modal .colorsel .picks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-left: 24px; }
@@ -900,6 +923,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           <button class="btn ibtn add" id="addCardBtn" type="button" title="Agregar carta" aria-label="Agregar carta">${icon("plus")}</button>
           <button class="btn ibtn" id="exportBtn" type="button" title="Exportar" aria-label="Exportar">${icon("export")}</button>
           <button class="btn ibtn" type="button" id="renameBtn" title="Renombrar o cambiar tipo (Commander / lista de cartas)" aria-label="Renombrar o cambiar tipo">${icon("edit")}</button>
+          ${isList(d) ? "" : `<button class="btn ibtn" type="button" id="fitsBtn" title="Cartas compatibles: las que tienes en otros mazos y listas que encajan con la identidad de color del comandante" aria-label="Cartas compatibles">${icon("sparkle")}</button>`}
           <button class="btn ibtn" type="button" id="dupBtn" title="Duplicar" aria-label="Duplicar">${icon("copy")}</button>
           <button class="btn ibtn danger" type="button" id="delDeckBtn" title="Eliminar mazo" aria-label="Eliminar mazo">${icon("trash")}</button>
           </div>
@@ -1011,6 +1035,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   const colorName = (ch) => ch === "C" ? "incoloro" : COMBOS[ch].toLowerCase();
   // Color chips next to the search box; they search on their own, even with the box empty.
   function renderScol() {
+    $("scolBox").classList.toggle("any", !!ui.scol);
     $("scolBox").innerHTML = "WUBRGC".split("").map((ch) =>
       `<button type="button" class="chip${ui.scol.includes(ch) ? " on" : ""}" data-scol="${ch}" aria-pressed="${ui.scol.includes(ch)}" title="Buscar cartas de color ${colorName(ch)}">${pipsHtml(ch === "C" ? "" : ch)}</button>`).join("")
       + (ui.scol ? `<button type="button" class="linkbtn" data-scol="" title="Quitar filtro de color" aria-label="Quitar filtro de color">×</button>` : "");
@@ -1076,6 +1101,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     backup: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>',
     newdeck: '<rect x="4" y="3" width="13" height="18" rx="2"/><path d="M10.5 9v6M7.5 12h6M20 7v12"/>',
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+    eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    eyeoff: '<path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.8M6.6 6.6C3.6 8.5 2 12 2 12s3.5 7 10 7a9.9 9.9 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>',
   };
   const icon = (k) => `<svg class="ic${k === "chev" ? " chev" : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
   let addPrint = null; // printing loaded in the add form from a Scryfall link
@@ -1283,6 +1311,89 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     }
     change();
     toast(`${q} × ${c.n} ${keep ? "copiada" : "movida"}${q > 1 ? "s" : ""} a ${to.name}`);
+  }
+  // Cards from your other decks and lists that fit d's color identity and aren't in d yet (basic lands left out).
+  function fitsPool(d) {
+    const ci = deckColors(d), inDeck = new Set(d.cards.map((c) => norm(c.n))), pool = new Map();
+    for (const x of S.decks) if (x !== d) for (const c of x.cards) {
+      if (BASICS.has(c.n) || inDeck.has(norm(c.n))) continue;
+      const m = meta(c.n); if (!m || ![...(m.ci || "")].every((ch) => ci.includes(ch))) continue;
+      if (!pool.has(c.n)) pool.set(c.n, []);
+      pool.get(c.n).push({ x, c });
+    }
+    // Lists first: taking a card from a binder doesn't break another deck.
+    pool.forEach((srcs) => srcs.sort((a, b) => isList(b.x) - isList(a.x) || a.x.name.localeCompare(b.x.name)));
+    return pool;
+  }
+  const FIT_TYPES = [["", "Todos", "cards"], ...[...TYPE_GROUPS.map((x) => x[1]), "Otros"].map((g) => [g, g])];
+  const FIT_SORTS = [["n", "Tipo y nombre", "cards"], ["p", "Precio (mayor primero)", "dollar"], ["cmc", "Coste", "bolt"]];
+  // Same look as seg(), but for state that lives in a modal instead of ui.
+  function localDd(key, title, opts, cur, iconKey) {
+    const c = opts.find(([v]) => v === cur) || opts[0];
+    return `<details class="more dd" data-fkey="${key}">
+      <summary class="btn" aria-label="${title}">${icon(c[2] || iconKey)}<span class="ddk">${title}</span> ${c[1]}${icon("chev")}</summary>
+      <div class="menu">${opts.map(([v, label, ic]) => `<button type="button" data-fv="${esc(v)}" class="${v === cur ? "on" : ""}">${icon(ic || iconKey)}${label}</button>`).join("")}</div>
+    </details>`;
+  }
+  function fitsModal(d) {
+    let filter = "", sort = "n", type = "", srcs = [];
+    modal(`<h3>Cartas compatibles con ${esc(d.name)} ${pipsHtml(deckColors(d))}</h3>
+      <p class="status">Cartas que tienes en otros mazos y listas cuya identidad de color encaja con ${d.cmd.length ? "el comandante" : "este mazo (no tiene comandante marcado, así que se usan los colores de todas sus cartas)"} y que este mazo aún no tiene. Sin tierras básicas.</p>
+      <div class="fitbar">
+        <label class="ifield grow" title="Filtrar por nombre o tipo">${icon("search")}<input type="search" id="fitQ" placeholder="Filtrar por nombre o tipo…" aria-label="Filtrar cartas compatibles"></label>
+        <span id="fitTypeDd"></span><span id="fitSortDd"></span>
+        <button class="btn" type="button" id="fitHide"></button>
+        <span class="status num" id="fitCount"></span></div>
+      <div class="fitwrap"><div class="fitprev" id="fitPrev"></div><div class="fitlist" id="fitList"></div></div>
+      <div class="row2"><button class="btn primary" data-no type="button">Cerrar</button></div>`,
+      (m, close) => {
+        const draw = () => {
+          m.querySelector("#fitTypeDd").innerHTML = localDd("type", "Tipo", FIT_TYPES, type, "cards");
+          m.querySelector("#fitSortDd").innerHTML = localDd("sort", "Ordenar", FIT_SORTS, sort, "sort");
+          const f = norm(filter);
+          const hide = !!ui.fitHide, hb = m.querySelector("#fitHide");
+          hb.setAttribute("aria-pressed", hide);
+          hb.innerHTML = `${icon(hide ? "eyeoff" : "eye")}${hide ? "Ocultando las que están en mazos" : "Ocultar las que están en mazos"}`;
+          hb.title = hide ? "Solo se muestran las copias que tienes en listas de cartas" : "Mostrar solo las copias que tienes en listas de cartas, no las que ya usas en otro mazo de Commander";
+          // With hide on, only copies sitting in lists count; a card that's only in other decks drops out.
+          let rows = [...fitsPool(d).entries()].map(([n, arr]) => [n, hide ? arr.filter((s) => isList(s.x)) : arr])
+            .filter(([n, arr]) => arr.length && (!type || typeGroup(n) === type) && (!f || norm(n).includes(f) || norm(meta(n).t).includes(f)));
+          const best = (arr) => Math.max(...arr.map((s) => s.c.p));
+          rows.sort(sort === "p" ? (a, b) => best(b[1]) - best(a[1]) : sort === "cmc" ? (a, b) => cmcOf(a[0]) - cmcOf(b[0]) || a[0].localeCompare(b[0])
+            : (a, b) => GROUP_ORDER.indexOf(typeGroup(a[0])) - GROUP_ORDER.indexOf(typeGroup(b[0])) || a[0].localeCompare(b[0]));
+          m.querySelector("#fitCount").textContent = rows.length + " carta(s)" + (rows.length > 300 ? " · se muestran 300" : "");
+          srcs = [];
+          let lastGroup = null;
+          m.querySelector("#fitList").innerHTML = rows.slice(0, 300).map(([n, arr]) => {
+            const g = sort === "n" ? typeGroup(n) : null, head = g && g !== lastGroup ? `<h4>${esc(g)}</h4>` : "";
+            lastGroup = g;
+            return head + `<div class="fit" data-fn="${esc(n)}"><div class="fitname"><b>${esc(n)}</b> ${costHtml(meta(n).m)} <span class="status">${esc(meta(n).t)}</span></div>
+              <div class="fitsrc">${arr.map((s) => { srcs.push(s); const i = srcs.length - 1;
+                return `<span class="src">${isList(s.x) ? "" : `<span class="tag" title="Ya se usa en este mazo de Commander">mazo</span>`}${esc(s.x.name)} · ${s.c.q}x ${esc(s.c.e)}${s.c.f ? " · Foil" : ""} · <span class="num">${money(s.c.p)}</span>
+                  <button class="btn sm" type="button" data-fmove="${i}" title="Quitar una copia de ${esc(s.x.name)} y ponerla en ${esc(d.name)}">Mover</button><button class="btn sm" type="button" data-fcopy="${i}" title="Agregarla a ${esc(d.name)} sin quitarla de ${esc(s.x.name)}">Copiar</button></span>`; }).join("")}</div></div>`;
+          }).join("") || `<p class="status empty">No hay cartas compatibles${hide ? " en tus listas de cartas" : ""}${f || type ? " con ese filtro" : ""}.</p>`;
+        };
+        m.querySelector("[data-no]").onclick = close;
+        m.querySelector("#fitQ").oninput = (e) => { filter = e.target.value; draw(); };
+        m.querySelector(".fitbar").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-fv]"); if (!b) return;
+          if (b.closest("[data-fkey]").dataset.fkey === "type") type = b.dataset.fv; else sort = b.dataset.fv;
+          draw();
+        });
+        m.querySelector("#fitHide").onclick = () => { ui.fitHide = !ui.fitHide; lsSet(UI_KEY, (({ filter, pmin, pmax, scol, ...keep }) => keep)(ui)); draw(); };
+        m.querySelector("#fitList").addEventListener("mouseover", (e) => {
+          const r = e.target.closest("[data-fn]"); if (!r || r.dataset.shown) return;
+          m.querySelectorAll("[data-shown]").forEach((x) => delete x.dataset.shown); r.dataset.shown = "1";
+          m.querySelector("#fitPrev").innerHTML = artHtml(r.dataset.fn, "", fitsPool(d).get(r.dataset.fn)[0].c, true);
+        });
+        m.querySelector("#fitList").addEventListener("click", (e) => {
+          const b = e.target.closest("[data-fmove], [data-fcopy]"); if (!b) return;
+          const s = srcs[+(b.dataset.fmove ?? b.dataset.fcopy)];
+          moveCard(s.x, s.c, d, 1, b.dataset.fcopy != null);
+          draw();
+        });
+        draw();
+      }, "wide fitsm");
   }
   function printsUrl(n) { return "https://scryfall.com/search?q=" + encodeURIComponent('!"' + n.split(" // ")[0] + '"') + "&unique=prints"; }
   function imageModal(d, c) {
@@ -1640,6 +1751,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     if (t.id === "exportBtn") return exportDeck(d);
     if (t.id === "addCardBtn") return addCardModal();
     if (t.id === "renameBtn") return editDeckModal(d);
+    if (t.id === "fitsBtn") return fitsModal(d);
     if (t.id === "dupBtn") return askName("Duplicar mazo", d.name + " (copia)", "Duplicar", (name) => { const nd = JSON.parse(JSON.stringify(d)); nd.id = uid(); nd.name = name; S.decks.push(nd); ui.deck = nd.id; change(); });
     if (t.id === "delDeckBtn") return confirmBox("Eliminar mazo", `Se eliminará “${d.name}” con sus ${count(d)} cartas.`, "Eliminar", () => { S.decks = S.decks.filter((x) => x !== d); ui.deck = null; change(); });
     const row = t.closest("tr[data-i]");

@@ -63,9 +63,17 @@ Al abrir la página se ven dos secciones: **Mis mazos** (los de Commander) y, de
 - Miniatura del comandante; al hacer clic se abre su ficha. Si el mazo tiene dos (partners), las miniaturas se ven una detrás de otra, aquí y en la página principal; al pasar el ratón, la de atrás pasa al frente.
 - Contador **N / 100**: verde si el mazo tiene exactamente 100 cartas.
 - Valor, foils, coste medio (sin tierras), cartas distintas y cuántas hay de cada tipo (criaturas, tierras, instantáneos, conjuros, artefactos…), más la curva de maná (sin contar tierras).
-- Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local); abajo, **Agregar desde CSV…** suma las cartas de uno o varios CSV al mazo sin borrar las que ya tiene: una carta que ya está con la misma edición y foil solo suma copias. Con la ventana abierta también se pueden arrastrar los CSV, **Exportar** (ver abajo), **Editar mazo** (lápiz: nombre y tipo), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
+- Botones con icono (el nombre aparece al pasar el ratón): **+ Agregar carta** (abre una ventana con cantidad, nombre, edición, precio y foil; arriba se puede pegar el enlace de Scryfall de la impresión y pulsar **Cargar** para llenar el nombre, la edición, el precio y la imagen, solo en la versión local); abajo, **Agregar desde CSV…** suma las cartas de uno o varios CSV al mazo sin borrar las que ya tiene: una carta que ya está con la misma edición y foil solo suma copias. Con la ventana abierta también se pueden arrastrar los CSV, **Exportar** (ver abajo), **Editar mazo** (lápiz: nombre y tipo), **Cartas compatibles** (destellos, solo en mazos de Commander; ver abajo), **Duplicar** y la papelera roja para **Eliminar mazo** (pide confirmación).
 - Debajo, la barra: a la izquierda el filtro de cartas del mazo, el **filtro de precio**, **Agrupar** y **Ordenar** (menús desplegables); a la derecha **Vista** y **Ocultar verificadas**.
 - **Filtro de precio** ($ mín – máx): muestra solo las cartas cuyo precio por copia está en ese rango, en las tres vistas. Se puede dejar vacío un extremo (solo `5` en mín = $5 o más). La × lo quita. Se aplica a todos los mazos mientras navegas y no se recuerda al recargar la página.
+
+### Cartas compatibles
+En un mazo de Commander, el botón **Cartas compatibles** (destellos) abre la lista de todas las cartas que tienes en tus otros mazos y listas cuya **identidad de color** encaja con la del comandante y que este mazo aún no tiene (sin tierras básicas). Si el mazo no tiene comandante marcado, se usan los colores de todas sus cartas.
+
+- Se agrupan por tipo, o se ordenan por precio o coste. Arriba se filtran por nombre (lupa) y por tipo de carta. Al pasar el ratón se ve la imagen a la izquierda.
+- **Ocultar las que están en mazos** (ojo) deja solo las copias que tienes en listas de cartas, para no desarmar otro mazo de Commander; se recuerda para la próxima vez.
+- Cada carta muestra dónde está (primero las listas; las que están en otro mazo de Commander llevan la etiqueta **mazo**), con edición, foil y precio.
+- **Mover** quita una copia de ahí y la pone en este mazo; **Copiar** la agrega sin quitarla. La carta desaparece de la lista en cuanto ya está en el mazo.
 
 ### Exportar
 | Formato | Resultado |
