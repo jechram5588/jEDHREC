@@ -347,11 +347,19 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .fitwrap.noprev .fitprev { display: none; }
 .fitlist.grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--fw, 170px)), 1fr)); align-content: start; gap: 12px; }
 .fitlist.grid h4 { grid-column: 1 / -1; }
+/* Name and type (one line each, so images line up across a row), image, then each copy under a separator. */
 .ftile { display: grid; gap: 4px; align-content: start; font-size: 0.8rem; }
+.ftile .art { margin: 2px 0 4px; }
 .ftile .fname { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ftile .src { display: grid; gap: 3px; border-top: 1px solid var(--line); padding-top: 4px; }
+.ftile .ftype { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftile .src { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 4px; }
+.ftile .fdesc { color: var(--muted); }
+.ftile .fbtns { display: grid; grid-template-columns: 1fr 1fr; }
 .ftile .tag { margin-left: 0; margin-right: 4px; }
 .fbtns { display: inline-flex; gap: 4px; white-space: nowrap; }
+.zoom { position: fixed; inset: 0; z-index: 60; background: rgba(10, 15, 20, 0.75); display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+.zoomcard { width: min(488px, 90vw, calc(88vh * 488 / 680)); }
+.zoomcard .art { box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5); }
 .fitlist.table { display: block; }
 .ftable { min-width: 0; font-size: 0.85rem; }
 .ftable th, .ftable td { padding: 4px 6px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
@@ -1355,6 +1363,15 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       <div class="menu">${opts.map(([v, label, ic]) => `<button type="button" data-fv="${esc(v)}" class="${v === cur ? "on" : ""}">${icon(ic || iconKey)}${label}</button>`).join("")}</div>
     </details>`;
   }
+  // Big image over whatever is open; its own layer so the modal underneath stays. Click or Esc closes it.
+  function zoomCard(n, c) {
+    const z = document.createElement("div");
+    z.className = "zoom"; z.id = "zoom"; z.setAttribute("role", "dialog"); z.setAttribute("aria-label", n);
+    z.innerHTML = `<div class="zoomcard">${artHtml(n, "", c, true)}</div>`;
+    // The layer lives outside #app, so it flips double-faced cards itself.
+    z.addEventListener("click", (e) => { const fl = e.target.closest("[data-flip]"); if (fl) fl.closest(".flip").classList.toggle("flipped"); else z.remove(); });
+    document.body.appendChild(z);
+  }
   function fitsModal(d) {
     let filter = "", sort = "n", type = "", srcs = [];
     modal(`<h3>Cartas compatibles con ${esc(d.name)} ${pipsHtml(deckColors(d))}</h3>
@@ -1389,8 +1406,14 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           srcs = [];
           const empty = `<p class="status empty">No hay cartas compatibles${hide ? " en tus listas de cartas" : ""}${f || type ? " con ese filtro" : ""}.</p>`;
           // Buttons for one copy; srcs holds the copies so clicks can find them by index.
-          const btns = (s) => { srcs.push(s); const i = srcs.length - 1;
-            return `<button class="btn sm" type="button" data-fmove="${i}" title="Quitar una copia de ${esc(s.x.name)} y ponerla en ${esc(d.name)}">Mover</button><button class="btn sm" type="button" data-fcopy="${i}" title="Agregarla a ${esc(d.name)} sin quitarla de ${esc(s.x.name)}">Copiar</button>`; };
+          // In the grid the second button zooms the image instead of copying.
+          const btns = (s, zoom) => { srcs.push(s); const i = srcs.length - 1;
+            return `<button class="btn sm" type="button" data-fmove="${i}" title="Quitar una copia de ${esc(s.x.name)} y ponerla en ${esc(d.name)}">Mover</button>`
+              + (zoom ? `<button class="btn sm" type="button" data-fzoom="${i}" title="Ver la carta en grande">Zoom</button>`
+                : `<button class="btn sm" type="button" data-fcopy="${i}" title="Agregarla a ${esc(d.name)} sin quitarla de ${esc(s.x.name)}">Copiar</button>`); };
+          // Grid: one row per deck or list; several printings there collapse into a price range, and Mover takes the cheapest.
+          const byDeck = (arr) => { const g = new Map(); arr.forEach((s) => { if (!g.has(s.x)) g.set(s.x, []); g.get(s.x).push(s); });
+            return [...g.values()].map((a) => a.sort((x, y) => x.c.p - y.c.p)); };
           const where = (s) => `${isList(s.x) ? "" : `<span class="tag" title="Ya se usa en este mazo de Commander">mazo</span>`}${esc(s.x.name)}`;
           // A heading each time the type changes, only when sorted by type.
           let lastGroup = null;
@@ -1400,9 +1423,12 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           list.style.setProperty("--fw", (ui.fitW || 170) + "px");
           m.querySelector("#fitSize").hidden = view !== "grid";
           m.querySelector("#fitWrap").classList.toggle("noprev", view === "grid");
-          if (view === "grid") list.innerHTML = shown.map(([n, arr]) => head(n, (g) => `<h4>${g}</h4>`) + `<div class="ftile" data-fn="${esc(n)}">${artHtml(n, "", arr[0].c)}
+          if (view === "grid") list.innerHTML = shown.map(([n, arr]) => head(n, (g) => `<h4>${g}</h4>`) + `<div class="ftile" data-fn="${esc(n)}">
               <b class="fname" title="${esc(n)}">${esc(n)}</b>
-              ${arr.map((s) => `<div class="src"><span>${where(s)} · ${s.c.q}x${s.c.f ? " · Foil" : ""} · <span class="num">${money(s.c.p)}</span></span><span class="fbtns">${btns(s)}</span></div>`).join("")}</div>`).join("") || empty;
+              <span class="ftype" title="${esc(meta(n).t)}">${esc(meta(n).t)}</span>
+              ${artHtml(n, "", arr[0].c)}
+              ${byDeck(arr).map((g) => { const lo = g[0].c.p, hi = g[g.length - 1].c.p, n = g.reduce((a, s) => a + s.c.q, 0);
+                return `<div class="src"><span class="fdesc">${where(g[0])} · <span class="num">${money(lo)}${hi > lo ? "–" + money(hi) : ""}</span>${n > 1 ? ` · ${n} copias` : ""}</span><span class="fbtns">${btns(g[0], true)}</span></div>`; }).join("")}</div>`).join("") || empty;
           else if (view === "table") list.innerHTML = shown.length ? `<table class="ftable"><thead><tr><th>Carta</th><th>Coste</th><th>Tipo</th><th>Dónde</th><th>Cant.</th><th>Edición</th><th>Precio</th><th></th></tr></thead><tbody>
               ${shown.map(([n, arr]) => head(n, (g) => `<tr class="fgrp"><td colspan="8">${g}</td></tr>`) + arr.map((s) => `<tr data-fn="${esc(n)}"><td><b>${esc(n)}</b></td><td>${costHtml(meta(n).m)}</td><td class="status">${esc(meta(n).t)}</td>
                 <td>${where(s)}</td><td class="num">${s.c.q}</td><td>${esc(s.c.e)}${s.c.f ? ` <span class="tag">Foil</span>` : ""}</td><td class="num">${money(s.c.p)}</td><td class="fbtns">${btns(s)}</td></tr>`).join("")).join("")}</tbody></table>` : empty;
@@ -1430,6 +1456,8 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           m.querySelector("#fitPrev").innerHTML = artHtml(r.dataset.fn, "", fitsPool(d).get(r.dataset.fn)[0].c, true);
         });
         m.querySelector("#fitList").addEventListener("click", (e) => {
+          const z = e.target.closest("[data-fzoom]");
+          if (z) { const s = srcs[+z.dataset.fzoom]; return zoomCard(s.c.n, s.c); }
           const b = e.target.closest("[data-fmove], [data-fcopy]"); if (!b) return;
           const s = srcs[+(b.dataset.fmove ?? b.dataset.fcopy)];
           moveCard(s.x, s.c, d, 1, b.dataset.fcopy != null);
@@ -1879,6 +1907,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && menuOpen) { menuOpen = false; renderSide(); $("dmBtn").focus(); }
+    if (e.key === "Escape" && $("zoom")) { $("zoom").remove(); return; }
     if (e.key === "Escape") $("overlay").innerHTML = "";
     if ((e.ctrlKey || e.metaKey) && e.key === "s" && (localMode || (canPublish && dirty))) { e.preventDefault(); save(); }
   });
