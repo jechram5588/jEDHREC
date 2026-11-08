@@ -252,6 +252,11 @@ tr.is-ok .linkbtn { color: var(--ok); }
 
 .ggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cw, 150px)), 1fr)); gap: 12px; }
 .gsec { display: grid; gap: 10px; margin-bottom: 8px; }
+.ggrid .csub { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; padding: 4px 0 2px; border-bottom: 1px dashed var(--line);
+  font-size: 0.82rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.ggrid .csub:not(:first-child) { margin-top: 6px; }
+.ggrid .csub svg { width: 14px; height: 14px; }
+.ggrid .csub .num { font-weight: 400; }
 .gcard { position: relative; border: 0; padding: 0; background: transparent; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
 .gcard:hover .art { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3); }
 .gcard .art { transition: transform .15s, box-shadow .15s; }
@@ -408,7 +413,10 @@ td.type { color: var(--muted); font-size: 0.85rem; }
 .imgmodal section { display: grid; gap: 6px; }
 .imgmodal a { color: var(--accent); }
 .imgmodal .allrow { display: flex; gap: 6px; align-items: center; }
-.prints { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; max-height: 46vh; overflow-y: auto; padding: 2px; }
+.imgmodal .phead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.imgmodal .phead h4 { margin: 0; }
+.imgmodal .sizer { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.prints { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--pw, 112px)), 1fr)); gap: 10px; max-height: 60vh; overflow-y: auto; padding: 2px; }
 .pbtn { border: 2px solid transparent; background: transparent; padding: 2px; border-radius: 8px; display: grid; gap: 3px; text-align: left; font-size: 0.75rem; color: var(--muted); min-width: 0; }
 .pbtn:hover { border-color: var(--accent); }
 .pbtn.on { border-color: var(--foil); }
@@ -1016,15 +1024,25 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   }
   function gridHtml(d, rows) {
     if (!rows.length) return emptyHtml(d);
-    return groupsOf(d, rows).map(([name, rs]) => `
+    // Sorted by cost (and not already grouped by it): a "Coste N" divider inside each group whenever the cost changes.
+    const byCost = ui.sort === "cmc" && ui.group !== "cmc";
+    const costLabel = (n) => { const v = Math.floor(cmcOf(n)); return v >= 7 ? "7+" : String(v); };
+    return groupsOf(d, rows).map(([name, rs]) => {
+      const counts = {};
+      if (byCost) for (const { c } of rs) { const k = costLabel(c.n); counts[k] = (counts[k] || 0) + c.q; }
+      const split = byCost && name !== "Tierras" && Object.keys(counts).length > 0;
+      let last = null;
+      const sub = (c) => { if (!split) return ""; const k = costLabel(c.n); if (k === last) return ""; last = k;
+        return `<div class="csub">${icon("bolt")}Coste ${k} <span class="num">(${counts[k]})</span></div>`; };
+      return `
       <section class="gsec">${groupHead(name, rs)}
-        ${ui.collapsed[name] ? "" : `<div class="ggrid">${rs.map(({ c, i }) => `
+        ${ui.collapsed[name] ? "" : `<div class="ggrid">${rs.map(({ c, i }) => `${sub(c)}
           <button type="button" class="gcard" data-card="${i}" title="${esc(c.n)}">
             ${artHtml(c.n, "", c, true)}${okBtn(c, i)}
             ${c.q > 1 ? `<span class="badge">${c.q}x</span>` : ""}${c.f ? `<span class="badge foil">Foil</span>` : ""}
             <span class="cap"><span>${esc(c.n)}</span><span class="num">${money(c.p)}</span></span>
           </button>`).join("")}</div>`}
-      </section>`).join("");
+      </section>`; }).join("");
   }
   function tableHtml(d, rows) {
     const others = otherDecksIndex(d.id);
@@ -1534,7 +1552,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const copies = sameName().length;
     modal(`<div class="imgmodal" id="imgModal">
         <h3>Imagen de ${esc(c.n)}</h3>
-        <section><h4>Elegir otra impresión</h4><div class="prints" id="prints"><p class="status">Buscando impresiones en Scryfall…</p></div></section>
+        <section><div class="phead"><h4>Elegir otra impresión</h4>
+          <label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="printW" type="range" min="90" max="320" step="10" value="${ui.printW || 112}" aria-label="Tamaño de las cartas"></label></div>
+          <div class="prints" id="prints" style="--pw:${ui.printW || 112}px"><p class="status">Buscando impresiones en Scryfall…</p></div></section>
         <section><h4>O usa tu propia imagen</h4>
           <div class="pastezone" id="pasteZone" tabindex="0">Pega aquí una imagen con Ctrl+V o <button type="button" data-i="file">elige un archivo</button></div>
           <input type="file" id="imgFile" accept="image/*" hidden>
@@ -1571,6 +1591,14 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         if (b.dataset.i === "reset") setImg(null);
         if (b.dataset.i === "close") close();
       });
+      // Card size: bigger than Scryfall's small image (146px) switches to the normal one so it stays sharp.
+      const pick = (p) => ((ui.printW || 112) > 146 ? p.normal : p.small || p.normal);
+      el.querySelector("#printW").addEventListener("input", (e) => {
+        ui.printW = +e.target.value;
+        el.querySelector("#prints").style.setProperty("--pw", ui.printW + "px");
+        el.querySelectorAll("#prints img[data-k]").forEach((im) => { const u = pick(found[+im.dataset.k]); if (im.getAttribute("src") !== u) im.src = u; });
+      });
+      el.querySelector("#printW").addEventListener("change", () => { const { filter, pmin, pmax, scol, ...keep } = ui; lsSet(UI_KEY, keep); });
       el.querySelector("#imgFile").addEventListener("change", (e) => { if (e.target.files[0]) useBlob(e.target.files[0]); });
       zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
       zone.addEventListener("dragleave", () => zone.classList.remove("over"));
@@ -1599,12 +1627,12 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           found = prints;
           el.querySelector("#prints").innerHTML = prints.map((p, k) => `
             <button type="button" class="pbtn${p.normal === c.im ? " on" : ""}" data-print="1" data-k="${k}" title="${esc(p.set)} #${esc(p.num)}">
-              <img class="art" src="${esc(p.small)}" alt="${esc(c.n)}, ${esc(p.set)}" loading="lazy"><b>${esc(p.set)}</b><span>#${esc(p.num)}</span>
+              <img class="art" data-k="${k}" src="${esc(pick(p))}" alt="${esc(c.n)}, ${esc(p.set)}" loading="lazy"><b>${esc(p.set)}</b><span>#${esc(p.num)}</span>
             </button>`).join("");
         }).catch(() => {
           el.querySelector("#prints").innerHTML = `<p class="status">Desde aquí no se puede consultar Scryfall. Abre las impresiones en Scryfall, copia la imagen que quieras y pégala abajo. <a href="${esc(printsUrl(c.n))}" target="_blank" rel="noopener">Ver impresiones en Scryfall ↗</a></p>`;
         });
-    }, "wide");
+    }, "wide fitsm");
   }
   // Card-sized JPEG so stored images stay small.
   function shrink(blob) {
