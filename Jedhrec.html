@@ -164,6 +164,19 @@ img.pip.sym { width: 19px; height: 19px; }
 .deckhead .toolbar .tright { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-left: auto; }
 .tright .dd .menu { left: auto; right: 0; }
 .pricef.on { color: var(--accent); }
+.tfilter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tchip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border: 1px solid var(--accent); border-radius: 999px;
+  background: var(--panel); color: var(--ink); font: inherit; font-size: 0.85rem; cursor: pointer; transition: opacity .15s; }
+.tchip .ic { width: 17px; height: 17px; color: var(--accent); }
+.tchip .num { color: var(--muted); }
+.tchip:hover { background: var(--bg); }
+.tchip.off { border-color: var(--line); opacity: 0.45; }
+.tchip.off .ic { color: var(--muted); }
+.tchip .cic { width: 17px; height: 17px; }
+.tchip.off .cic { filter: grayscale(1); }
+.tchip b { font-weight: 700; margin-left: -3px; }
+.chiprow { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.chipsep { width: 1px; align-self: stretch; background: var(--line); }
 .toolbar .pricef input { flex: 0 0 64px; width: 64px; }
 .pricef .linkbtn { font-size: 1.1rem; line-height: 1; padding: 0 4px; }
 .toolbar input { flex: 1 1 160px; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
@@ -536,7 +549,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   function cmcOf(n) { const m = meta(n); return m ? m.cmc : 0; }
   function groupKey(d, c) {
     if (isCmd(d, c.n)) return "Comandante";
-    if (ui.group === "type") return typeGroup(c.n);
+    if (ui.group === "type" || ui.group === "typef") return typeGroup(c.n);
     if (ui.group === "cmc") { if (isLand(c.n)) return "Tierras"; const v = Math.floor(cmcOf(c.n)); return v >= 7 ? "Coste 7+" : "Coste " + v; }
     if (ui.group === "color") {
       if (isLand(c.n)) return "Tierras";
@@ -849,7 +862,26 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     return m;
   }
   const priceNum = (s) => { const x = parseFloat(String(s || "").replace(",", ".").replace(/[^0-9.]/g, "")); return isNaN(x) ? null : x; };
-  function sortedRows(d) {
+  // Icon-chip filters for type and mana cost, only with Agrupar → "Tipo con filtros" (list and grid). ui.htypes / ui.hcosts list what's hidden.
+  // skip leaves one of them out, so each set of chips counts the cards the other filters let through.
+  const typeFilterOn = () => ui.group === "typef" && ui.view !== "table";
+  const costFilterOn = typeFilterOn;
+  function costBucket(n) { if (isLand(n)) return "Tierras"; const v = Math.floor(cmcOf(n)); return v >= 7 ? "7+" : String(v); }
+  const COST_BUCKETS = ["0", "1", "2", "3", "4", "5", "6", "7+", "Tierras"];
+  function sortedRows(d, skip) {
+    let rows = baseRows(d);
+    if (skip !== "type" && typeFilterOn() && (ui.htypes || []).length) rows = rows.filter(({ c }) => !ui.htypes.includes(groupKey(d, c)));
+    if (skip !== "cost" && costFilterOn() && (ui.hcosts || []).length) rows = rows.filter(({ c }) => !ui.hcosts.includes(costBucket(c.n)));
+    return rows;
+  }
+  // The values each chip set currently shows (used by Shift+clic "only this one").
+  function chipValues(d, kind) {
+    const rows = sortedRows(d, kind);
+    if (kind === "type") return groupsOf(d, rows).map((g) => g[0]);
+    const have = new Set(rows.map(({ c }) => costBucket(c.n)));
+    return COST_BUCKETS.filter((k) => have.has(k));
+  }
+  function baseRows(d) {
     const f = norm(d.localFilter || "");
     // Price range per copy; an empty end is open.
     const lo = priceNum(ui.pmin), hi = priceNum(ui.pmax);
@@ -979,17 +1011,43 @@ td.type { color: var(--muted); font-size: 0.85rem; }
           <span class="pricef${ui.pmin || ui.pmax ? " on" : ""}" title="Mostrar solo las cartas cuyo precio por copia está en este rango">${icon("dollar")}
             <input id="pMin" type="text" inputmode="decimal" placeholder="mín" value="${esc(ui.pmin)}" aria-label="Precio mínimo">–<input id="pMax" type="text" inputmode="decimal" placeholder="máx" value="${esc(ui.pmax)}" aria-label="Precio máximo">
             ${ui.pmin || ui.pmax ? `<button type="button" class="linkbtn" id="pClear" title="Quitar filtro de precio" aria-label="Quitar filtro de precio">×</button>` : ""}</span>
-          ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
+          ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["typef", "Tipo con filtros", "filter"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
           ${seg("sort", "Ordenar", [["n", "Nombre", "az"], ["cmc", "Coste", "bolt"], ["p", "Precio", "dollar"]])}` : ""}
           ${ui.view === "grid" ? `<label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="cardSize" type="range" min="90" max="300" step="10" value="${ui.cardW || 150}" aria-label="Tamaño de las cartas"></label>` : ""}
           <span class="tright">${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
             <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button></span>
         </div>
+        ${filterChipsHtml(d)}
       </section>
       <div class="board${showPreview ? "" : " nopreview"}" style="--cw:${ui.cardW || 150}px">
         ${showPreview ? `<aside class="preview" id="preview">${previewHtml(d)}</aside>` : ""}
         <div>${body}</div>
       </div>`;
+  }
+  // One icon per type in the deck (after the other filters), with its count; click shows/hides it, Shift+clic shows only that one.
+  const TYPE_ICONS = { "Comandante": "crown", "Criaturas": "paw", "Planeswalkers": "walker", "Batallas": "shield", "Instantáneos": "bolt", "Conjuros": "flame",
+    "Artefactos": "cog", "Encantamientos": "sparkle", "Tierras": "mountain", "Otros": "dots", "Sin datos": "question" };
+  const costIcon = (k) => k === "Tierras" ? icon("mountain")
+    : SYMS["{" + parseInt(k) + "}"] ? symImg("{" + parseInt(k) + "}", "cic") + (k === "7+" ? "<b>+</b>" : "") : `<b>${k}</b>`;
+  // One chip set: kind "type" or "cost". Hidden values stay listed (count 0 if nothing left) so they can be turned back on.
+  function chipSetHtml(d, kind) {
+    const hidden = (kind === "type" ? ui.htypes : ui.hcosts) || [];
+    const rows = sortedRows(d, kind), counts = new Map();
+    for (const { c } of rows) { const k = kind === "type" ? groupKey(d, c) : costBucket(c.n); counts.set(k, (counts.get(k) || 0) + c.q); }
+    const order = kind === "type" ? GROUP_ORDER : COST_BUCKETS;
+    const keys = [...new Set([...counts.keys(), ...hidden])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    if (keys.length < 2 && !hidden.length) return "";
+    const what = kind === "type" ? "tipo" : "coste";
+    return `<div class="tfilter" role="group" aria-label="Filtrar por ${what}">
+      ${keys.map((k) => { const off = hidden.includes(k), q = counts.get(k) || 0, label = kind === "type" || k === "Tierras" ? k : "Coste " + k;
+        return `<button type="button" class="tchip${off ? " off" : ""}" data-chip="${kind}" data-cv="${esc(k)}" aria-pressed="${!off}"
+          title="${esc(label)}: ${q} · clic para ${off ? "mostrar" : "ocultar"}, Shift+clic para ver solo este ${what}">${kind === "type" ? icon(TYPE_ICONS[k] || "dots") : costIcon(k)}<span class="num">${q}</span></button>`; }).join("")}
+      ${hidden.length ? `<button type="button" class="linkbtn" data-chip="${kind}" data-cv="" title="Mostrar todos">Ver todos</button>` : ""}
+    </div>`;
+  }
+  function filterChipsHtml(d) {
+    const parts = [typeFilterOn() ? chipSetHtml(d, "type") : "", costFilterOn() ? chipSetHtml(d, "cost") : ""].filter(Boolean);
+    return parts.length ? `<div class="chiprow">${parts.join('<span class="chipsep" aria-hidden="true"></span>')}</div>` : "";
   }
   function previewHtml(d) {
     const c = d.cards[previewIdx];
@@ -1024,8 +1082,9 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   }
   function gridHtml(d, rows) {
     if (!rows.length) return emptyHtml(d);
-    // Sorted by cost (and not already grouped by it): a "Coste N" divider inside each group whenever the cost changes.
-    const byCost = ui.sort === "cmc" && ui.group !== "cmc";
+    // Sorted by cost: a "Coste N" divider inside each group whenever the cost changes
+    // (not when already grouped by cost, nor with plain "Tipo"; "Tipo con filtros" keeps them).
+    const byCost = ui.sort === "cmc" && ui.group !== "cmc" && ui.group !== "type";
     const costLabel = (n) => { const v = Math.floor(cmcOf(n)); return v >= 7 ? "7+" : String(v); };
     return groupsOf(d, rows).map(([name, rs]) => {
       const counts = {};
@@ -1210,6 +1269,16 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    filter: '<path d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z"/>',
+    crown: '<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5L3 8z"/>',
+    paw: '<circle cx="6.5" cy="9.5" r="1.8"/><circle cx="10" cy="5.5" r="1.8"/><circle cx="14" cy="5.5" r="1.8"/><circle cx="17.5" cy="9.5" r="1.8"/><path d="M12 11c-3 0-5.5 4-5.5 6.2 0 1.6 1.2 2.8 2.8 2.8 1 0 1.8-.6 2.7-.6s1.7.6 2.7.6c1.6 0 2.8-1.2 2.8-2.8C17.5 15 15 11 12 11z"/>',
+    walker: '<circle cx="12" cy="6" r="3"/><path d="M5 21v-1.5a7 7 0 0 1 14 0V21M12 13v8"/>',
+    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/>',
+    flame: '<path d="M12 22c4 0 7-2.8 7-7 0-4.2-3.2-6.3-4.2-10.5C12.6 6.6 11.8 8.7 12 11c-1.3-.8-2.1-2.2-2.2-4C7 9.3 5 12 5 15c0 4.2 3 7 7 7z"/>',
+    cog: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    mountain: '<path d="M2 20 9 7l4.5 7.5L16 11l6 9H2z"/>',
+    dots: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+    question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01"/>',
     eyeoff: '<path d="M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-2.9 3.8M6.6 6.6C3.6 8.5 2 12 2 12s3.5 7 10 7a9.9 9.9 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/>',
   };
   const icon = (k) => `<svg class="ic${k === "chev" ? " chev" : ""}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ""}</svg>`;
@@ -1346,6 +1415,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
             : `<label class="inline"><input type="checkbox" id="mC"${isCmd(d, c.n) ? " checked" : ""}> Es comandante de ${esc(d.name)}</label>`}
           ${o ? `<p class="status">También en: ${esc(o.join(", "))}</p>` : ""}
           <label class="f">Enlace de Scryfall<span class="sfrow"><input type="url" id="mS" value="${esc(scryUrl(c.n, c))}" placeholder="https://scryfall.com/card/…" aria-describedby="sfMsg">
+            <button class="btn ibtn" data-m="sfclear" type="button" title="Limpiar el enlace para pegar otro" aria-label="Limpiar enlace de Scryfall">×</button>
             <button class="btn" data-m="sfload" type="button">Cargar datos</button><a class="btn" id="sfOpen" href="${esc(scryUrl(c.n, c))}" target="_blank" rel="noopener" title="Abrir en Scryfall">Abrir ↗</a></span></label>
           <p class="status" id="sfMsg">Si la edición, el precio o la imagen no son los de tu carta, pega el enlace de la impresión correcta y pulsa Cargar datos.</p>
           <div class="inline"><a href="${esc(scgUrl(c.n))}" target="_blank" rel="noopener">Ver en StarCityGames ↗</a></div>
@@ -1378,6 +1448,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         const a = b.dataset.m;
         if (a === "inc") { c.q++; el.querySelector("#mq").textContent = c.q; }
         if (a === "dec" && c.q > 1) { c.q--; el.querySelector("#mq").textContent = c.q; }
+        if (a === "sfclear") { const inp = el.querySelector("#mS"); inp.value = ""; inp.focus(); }
         if (a === "sfload") {
           const msg = el.querySelector("#sfMsg");
           msg.textContent = "Consultando Scryfall…";
@@ -1897,6 +1968,16 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     if (t.dataset.goto) { ui.deck = t.dataset.goto; ui.filter = ""; ui.scol = ""; $("q").value = ""; previewIdx = null; render(); return; }
     if (t.dataset.view) { ui.view = t.dataset.view; render(); return; }
     if (t.dataset.group) { ui.group = t.dataset.group; render(); return; }
+    if (t.dataset.chip) {
+      const kind = t.dataset.chip, prop = kind === "type" ? "htypes" : "hcosts", name = t.dataset.cv, hidden = ui[prop] || [];
+      if (!name) ui[prop] = [];
+      else if (e.shiftKey) {
+        const all = [...new Set([...chipValues(deckOf(ui.deck), kind), ...hidden])];
+        const solo = all.every((g) => g === name || hidden.includes(g)) && !hidden.includes(name);
+        ui[prop] = solo ? [] : all.filter((g) => g !== name);
+      } else ui[prop] = hidden.includes(name) ? hidden.filter((x) => x !== name) : [...hidden, name];
+      render(); return;
+    }
     if (t.dataset.sort) { ui.sort = t.dataset.sort; render(); return; }
     if (t.dataset.hsort) { ui.hsort = t.dataset.hsort; render(); return; }
     if (t.dataset.stype) { ui.stype = t.dataset.stype; render(); return; }
