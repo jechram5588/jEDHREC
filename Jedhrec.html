@@ -126,6 +126,14 @@ img.pip.sym { width: 19px; height: 19px; }
 .pill.ok { background: var(--accent-soft); color: var(--ok); }
 .pill.warn { background: var(--danger-soft); color: var(--danger); }
 .pill.info { background: var(--line); color: var(--muted); }
+.vbadge { display: inline-flex; align-items: center; gap: 4px; align-self: center; padding: 1px 9px 1px 6px; border-radius: 999px; border: 1px solid var(--ok);
+  color: var(--ok); font-size: 0.78rem; font-weight: 700; font-family: var(--f-body, inherit); }
+.tcol { display: grid; gap: 6px; justify-items: center; align-content: start; flex: none; }
+.tcol > :first-child { justify-self: stretch; }
+.tcol > .vbadge { font-size: 0.72rem; padding: 1px 7px 1px 5px; }
+.vbadge .ic { width: 13px; height: 13px; stroke-width: 3; }
+.vbadge.mini { padding: 0; border: 0; margin-left: 5px; vertical-align: -2px; }
+.vbadge.mini .ic { width: 13px; height: 13px; }
 .deckhead.compact { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; padding: 10px 14px; }
 .cmdthumbs { display: flex; gap: 4px; flex: none; }
 .cmdthumb { width: 84px; border: 0; padding: 0; background: transparent; border-radius: 4px; display: block; }
@@ -836,7 +844,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
       const list = items.filter((x) => (i === cols.length - 1 || !isList(x.d)) && test(x));
       return list.length ? `<div class="mcol${i === cols.length - 1 ? " wide" : ""}"><h3>${title}</h3>${list.map(({ d, ci }) => `
         <button type="button" class="mitem${cur && cur.id === d.id ? " on" : ""}" data-deck="${d.id}">
-          ${pipsHtml(ci)}<span><b>${esc(d.name)}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
+          ${pipsHtml(ci)}<span><b>${esc(d.name)}${allOk(d) ? verBadge(true) : ""}</b><small>${esc(COMBOS[ci] || "")} · ${count(d)} cartas · ${money(value(d))}</small></span>
         </button>`).join("")}</div>` : "";
     }).join("") || `<p class="status empty">Aún no hay mazos. Importa un CSV o crea uno nuevo.</p>`;
     // The button names the commander in full (front face only) so it's recognizable; the deck name is the fallback.
@@ -916,6 +924,11 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     return { foils, typeCounts, avgCmc };
   }
   // Dropdown menu for a ui setting. The summary shows the chosen option's icon, else iconKey, else the icon named after the key.
+  // Every card of the deck checked against the real one.
+  const allOk = (d) => d.cards.length > 0 && d.cards.every((c) => c.ok);
+  const verBadge = (mini) => mini
+    ? `<span class="vbadge mini" title="Todas las cartas verificadas" aria-label="Todas las cartas verificadas">${icon("check")}</span>`
+    : `<span class="vbadge" title="Todas las cartas están verificadas">${icon("check")}Verificado</span>`;
   function seg(key, title, opts, iconKey) {
     const cur = opts.find(([val]) => ui[key] === val) || opts[0];
     return `<details class="more dd">
@@ -954,7 +967,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
         const cmds = d.cmd.map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
         const thumbs = thumbNames(d).map((x) => d.cards.find((c) => c.n === x)).filter(Boolean);
         return `<button type="button" class="dcard" data-deck="${d.id}">
-          <div class="thumbs${thumbs.length === 2 ? " stack" : ""}">${thumbs.length ? thumbs.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>
+          <div class="tcol"><div class="thumbs${thumbs.length === 2 ? " stack" : ""}">${thumbs.length ? thumbs.map((c) => artHtml(c.n, "", c)).join("") : `<span class="cmdthumb none">${isList(d) ? icon("list") : "?"}</span>`}</div>${allOk(d) ? verBadge() : ""}</div>
           <div class="info">
             <div class="titlerow"><h3>${esc(d.name)}</h3>${pipsHtml(ci)}${sizePill(d, n)}</div>
             <div class="cmdr">${cmds.length ? cmds.map((c) => `<b>${esc(c.n)}</b>`).join(" + ") : isList(d) ? "Lista de cartas" : "Sin comandante"}<small> · ${esc(COMBOS[ci] || ci)}</small></div>
@@ -984,8 +997,8 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     }
     v.innerHTML = `
       <section class="deckhead compact">
-        <div class="cmdthumbs${cmdIdx.length === 2 ? " stack" : ""}">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
-          : isList(d) ? `<span class="cmdthumb none" title="Sin portada: abre una carta y márcala como portada">${icon("list")}</span>` : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>
+        <div class="tcol"><div class="cmdthumbs${cmdIdx.length === 2 ? " stack" : ""}">${cmdIdx.length ? cmdIdx.map((i) => `<button type="button" class="cmdthumb" data-card="${i}" title="${esc(d.cards[i].n)}">${artHtml(d.cards[i].n, "", d.cards[i])}</button>`).join("")
+          : isList(d) ? `<span class="cmdthumb none" title="Sin portada: abre una carta y márcala como portada">${icon("list")}</span>` : `<span class="cmdthumb none" title="Sin comandante">?</span>`}</div>${allOk(d) ? verBadge() : ""}</div>
         <div class="dh-main">
           <div class="titlerow">
             <h2 class="deckname">${esc(d.name)}</h2>
