@@ -182,6 +182,10 @@ img.pip.sym { width: 19px; height: 19px; }
 .tchip .cic { width: 17px; height: 17px; }
 .tchip.off .cic { filter: grayscale(1); }
 .tchip b { font-weight: 700; margin-left: -3px; }
+.cmode { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.cmode button { border: 0; background: var(--panel); color: var(--muted); font: inherit; font-size: 0.78rem; padding: 5px 9px; cursor: pointer; }
+.cmode button + button { border-left: 1px solid var(--line); }
+.cmode button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 .chiprow { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .chipsep { width: 1px; align-self: stretch; background: var(--line); }
 .toolbar .pricef input { flex: 0 0 64px; width: 64px; }
@@ -277,6 +281,24 @@ tr.is-ok .linkbtn { color: var(--ok); }
 .ggrid .csub:not(:first-child) { margin-top: 6px; }
 .ggrid .csub svg { width: 14px; height: 14px; }
 .ggrid .csub .num { font-weight: 400; }
+/* Stacked view: one column per group, cards overlap so only the name strip shows; hovering a card shows it whole */
+.piles { display: flex; flex-wrap: wrap; gap: 20px 14px; align-items: flex-start; }
+.pile { flex: none; width: var(--cw, 150px); min-width: 0; }
+.pile .ghead { flex-wrap: wrap; font-size: 0.9rem; margin-bottom: 8px; }
+.pcards { display: flex; flex-direction: column; }
+.pcard { position: relative; display: block; width: 100%; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.pcard + .pcard { margin-top: calc(var(--cw, 150px) * -1.255); }
+/* The hovered card opens up: the cards below it slide down to its bottom edge */
+.pcard { transition: margin-top .18s ease; }
+.pcard:hover + .pcard, .pcard:focus-visible + .pcard { margin-top: 4px; }
+.pcard .art { box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.35); }
+.pcard:hover, .pcard:focus-visible { z-index: 5; }
+.pcard:hover .art { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
+.pcard .ptags { position: absolute; top: 1%; right: -6px; z-index: 3; display: flex; gap: 3px; pointer-events: none; }
+.pcard .ptags .badge { position: static; padding: 0 6px; font-size: 0.75rem; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); }
+.pcard .okbtn { position: absolute; top: -6px; left: -6px; z-index: 3; width: 24px; height: 24px; opacity: 0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+.pcard .okbtn.on, .pcard:hover .okbtn, .pcard:focus-within .okbtn { opacity: 0.9; }
+.pcard .okbtn .ic { width: 13px; height: 13px; }
 .gcard { position: relative; border: 0; padding: 0; background: transparent; text-align: left; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
 .gcard:hover .art { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3); }
 .gcard .art { transition: transform .15s, box-shadow .15s; }
@@ -458,7 +480,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   .cardmodal { grid-template-columns: minmax(0, 1fr); }
   .cardmodal .art { max-width: 240px; margin: 0 auto; }
 }
-@media (prefers-reduced-motion: reduce) { .gcard .art, .flip .faces, .stack > * { transition: none; } .gcard:hover .art { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gcard .art, .flip .faces, .stack > *, .pcard { transition: none; } .gcard:hover .art { transform: none; } }
 @media (prefers-reduced-motion: no-preference) { .deckbtn, .btn, .chip { transition: border-color .15s, background .15s; } }
 </style>
 <div id="app">
@@ -503,7 +525,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
   const localMode = !(window.claude && window.claude.use);
 
   let stored = null, S = null, dirty = false;
-  let ui = { deck: null, hsort: "color", view: "list", group: "type", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "", pmin: "", pmax: "", scol: "" };
+  let ui = { deck: null, hsort: "color", view: "list", group: "type", cmode: "all", tmode: "all", sort: "n", dir: 1, tsort: "n", collapsed: {}, filter: "", pmin: "", pmax: "", scol: "" };
   let artifactApi = null, downloadsApi = null, assetsApi = null, canPublish = false, readOnly = false;
   let previewIdx = null;
 
@@ -988,6 +1010,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     let body;
     if (ui.view === "table") body = tableHtml(d, rows);
     else if (ui.view === "grid") body = gridHtml(d, rows);
+    else if (ui.view === "stack") body = stackHtml(d, rows);
     else body = listHtml(d, rows);
     const showPreview = ui.view === "list";
     if (previewIdx == null || !d.cards[previewIdx]) {
@@ -1025,8 +1048,8 @@ td.type { color: var(--muted); font-size: 0.85rem; }
             ${ui.pmin || ui.pmax ? `<button type="button" class="linkbtn" id="pClear" title="Quitar filtro de precio" aria-label="Quitar filtro de precio">×</button>` : ""}</span>
           ${ui.view !== "table" ? `${seg("group", "Agrupar", [["type", "Tipo", "cards"], ["typef", "Tipo con filtros", "filter"], ["cmc", "Coste", "bolt"], ["color", "Color", "palette"], ["none", "Ninguno", "none"]])}
           ${seg("sort", "Ordenar", [["n", "Nombre", "az"], ["cmc", "Coste", "bolt"], ["p", "Precio", "dollar"]])}` : ""}
-          ${ui.view === "grid" ? `<label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="cardSize" type="range" min="90" max="300" step="10" value="${ui.cardW || 150}" aria-label="Tamaño de las cartas"></label>` : ""}
-          <span class="tright">${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["table", "Tabla", "table"]])}
+          ${ui.view === "grid" || ui.view === "stack" ? `<label class="sizer" title="Tamaño de las cartas">${icon("grid")}<input id="cardSize" type="range" min="90" max="300" step="10" value="${ui.cardW || 150}" aria-label="Tamaño de las cartas"></label>` : ""}
+          <span class="tright">${seg("view", "Vista", [["list", "Lista", "list"], ["grid", "Cuadrícula", "grid"], ["stack", "Apilada", "piles"], ["table", "Tabla", "table"]])}
             <button class="btn" id="hideOkBtn" type="button" aria-pressed="${!!ui.hideOk}" title="Muestra solo las cartas que te faltan por comparar con la carta real">${icon("check")}${ui.hideOk ? "Ocultando verificadas" : "Ocultar verificadas"} <span class="num">${okCount}/${d.cards.length}</span></button></span>
         </div>
         ${filterChipsHtml(d)}
@@ -1050,10 +1073,16 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     const keys = [...new Set([...counts.keys(), ...hidden])].sort((a, b) => order.indexOf(a) - order.indexOf(b));
     if (keys.length < 2 && !hidden.length) return "";
     const what = kind === "type" ? "tipo" : "coste";
+    // Each chip set has a mode (ui.tmode / ui.cmode): "all" (each click shows/hides one value) or "one" (each click shows only that value; again to see all)
+    const one = ui[kind === "type" ? "tmode" : "cmode"] === "one", whats = what + "s";
+    const mode = `<span class="cmode" role="group" aria-label="Modo del filtro de ${what}">
+      <button type="button" data-fmode="${kind}" data-mv="all" aria-pressed="${!one}" title="Varios ${whats} a la vez: cada clic muestra u oculta un ${what}">Todos</button><button type="button" data-fmode="${kind}" data-mv="one" aria-pressed="${one}" title="Un ${what} cada vez: cada clic muestra solo ese ${what}">1 en 1</button></span>`;
     return `<div class="tfilter" role="group" aria-label="Filtrar por ${what}">
+      ${mode}
       ${keys.map((k) => { const off = hidden.includes(k), q = counts.get(k) || 0, label = kind === "type" || k === "Tierras" ? k : "Coste " + k;
+        const tip = one ? (off ? `clic para ver solo este ${what}` : "clic para ver todos") : `clic para ${off ? "mostrar" : "ocultar"}, Shift+clic para ver solo este ${what}`;
         return `<button type="button" class="tchip${off ? " off" : ""}" data-chip="${kind}" data-cv="${esc(k)}" aria-pressed="${!off}"
-          title="${esc(label)}: ${q} · clic para ${off ? "mostrar" : "ocultar"}, Shift+clic para ver solo este ${what}">${kind === "type" ? icon(TYPE_ICONS[k] || "dots") : costIcon(k)}<span class="num">${q}</span></button>`; }).join("")}
+          title="${esc(label)}: ${q} · ${tip}">${kind === "type" ? icon(TYPE_ICONS[k] || "dots") : costIcon(k)}<span class="num">${q}</span></button>`; }).join("")}
       ${hidden.length ? `<button type="button" class="linkbtn" data-chip="${kind}" data-cv="" title="Mostrar todos">Ver todos</button>` : ""}
     </div>`;
   }
@@ -1114,6 +1143,18 @@ td.type { color: var(--muted); font-size: 0.85rem; }
             <span class="cap"><span>${esc(c.n)}</span><span class="num">${money(c.p)}</span></span>
           </button>`).join("")}</div>`}
       </section>`; }).join("");
+  }
+  // Stacked view: each group is a column of overlapping cards (name strip visible), like a deck builder's "stacks".
+  function stackHtml(d, rows) {
+    if (!rows.length) return emptyHtml(d);
+    return `<div class="piles">${groupsOf(d, rows).map(([name, rs]) => `
+      <section class="pile">${groupHead(name, rs)}
+        ${ui.collapsed[name] ? "" : `<div class="pcards">${rs.map(({ c, i }) => `
+          <button type="button" class="pcard" data-card="${i}" title="${esc(c.n)} · ${money(c.p)}">
+            ${artHtml(c.n, "", c, true)}${okBtn(c, i)}
+            ${c.q > 1 || c.f ? `<span class="ptags">${c.f ? `<span class="badge foil">Foil</span>` : ""}${c.q > 1 ? `<span class="badge">×${c.q}</span>` : ""}</span>` : ""}
+          </button>`).join("")}</div>`}
+      </section>`).join("")}</div>`;
   }
   function tableHtml(d, rows) {
     const others = otherDecksIndex(d.id);
@@ -1255,6 +1296,7 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 10v10"/>',
+    piles: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M6 7h12M8 4h8"/>',
     group: '<path d="M12 3 2 8l10 5 10-5-10-5zM2 16l10 5 10-5M2 12l10 5 10-5"/>',
     sort: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
     chev: '<path d="m6 9 6 6 6-6"/>',
@@ -1980,10 +2022,11 @@ td.type { color: var(--muted); font-size: 0.85rem; }
     if (t.dataset.goto) { ui.deck = t.dataset.goto; ui.filter = ""; ui.scol = ""; $("q").value = ""; previewIdx = null; render(); return; }
     if (t.dataset.view) { ui.view = t.dataset.view; render(); return; }
     if (t.dataset.group) { ui.group = t.dataset.group; render(); return; }
+    if (t.dataset.fmode) { ui[t.dataset.fmode === "type" ? "tmode" : "cmode"] = t.dataset.mv; render(); return; }
     if (t.dataset.chip) {
       const kind = t.dataset.chip, prop = kind === "type" ? "htypes" : "hcosts", name = t.dataset.cv, hidden = ui[prop] || [];
       if (!name) ui[prop] = [];
-      else if (e.shiftKey) {
+      else if (e.shiftKey || ui[kind === "type" ? "tmode" : "cmode"] === "one") {
         const all = [...new Set([...chipValues(deckOf(ui.deck), kind), ...hidden])];
         const solo = all.every((g) => g === name || hidden.includes(g)) && !hidden.includes(name);
         ui[prop] = solo ? [] : all.filter((g) => g !== name);
